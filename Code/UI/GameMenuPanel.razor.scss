@@ -1,0 +1,1121 @@
+GameMenuPanel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	font-family: Poppins;
+	z-index: 100;
+}
+
+GameMenuPanel.open {
+	pointer-events: all;
+}
+
+GameMenuPanel.closed .backdrop,
+GameMenuPanel.closed .window {
+	display: none;
+}
+
+.backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.5 );
+}
+
+// Right-anchored panel. Fixed pixel width so exactly 3 tile columns fit.
+//   Tile: 180px wide, 8px margin each side → 196px per tile column.
+//   3 columns: 3×196 = 588px content, grid padding 32px, border 4px → 624px min.
+//   Window 660px: grid content = 660 - 36 = 624px.  3 tiles = 588px ✓  4 tiles = 784px ✗
+.window {
+	position: absolute;
+	right: 24px;
+	top: 24px;
+	bottom: 24px;
+	width: 660px;
+	background-color: rgba( 18, 24, 30, 0.97 );
+	border: 2px solid rgba( 110, 220, 140, 0.4 );
+	border-radius: 18px;
+	flex-direction: column;
+	box-shadow: 0px 12px 50px 0px rgba( 0, 0, 0, 0.7 );
+	overflow: hidden;
+}
+
+// ── HEADER ───────────────────────────────────────────────────────────────────
+
+.header {
+	flex-shrink: 0;
+	flex-direction: row;
+	align-items: center;
+	padding: 12px 24px;
+	background-color: rgba( 255, 255, 255, 0.03 );
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
+}
+
+.title {
+	flex-grow: 1;
+	color: white;
+	font-size: 24px;
+	font-weight: 700;
+	letter-spacing: 2px;
+}
+
+.close-btn {
+	width: 36px;
+	height: 36px;
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border-radius: 8px;
+	color: white;
+	font-size: 20px;
+	font-weight: 700;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+}
+
+.close-btn:hover {
+	background-color: rgba( 220, 80, 80, 0.7 );
+}
+
+// ── GRID ─────────────────────────────────────────────────────────────────────
+// Fixed-height: 3 rows of 152px tiles + 24px padding = 480px.
+.grid {
+	flex-shrink: 0;
+	flex-direction: row;
+	flex-wrap: wrap;
+	padding: 12px 16px;
+	align-content: flex-start;
+	justify-content: center;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
+}
+
+// Fixed pixel dimensions — calc() is unreliable in s&box; fixed values are safe.
+// 180px + 8px margin × 2 = 196px per tile. 3×196 = 588px fits the 624px grid.
+.tile {
+	width: 180px;
+	height: 180px;
+	margin: 8px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 2px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 18px;
+	cursor: pointer;
+	flex-direction: column;
+	align-items: center;
+	justify-content: space-between;
+	padding: 18px 12px 14px 12px;
+	transition: all 0.12s ease-out;
+}
+
+.tile:hover,
+.tile.hover {
+	border-color: rgba( 255, 255, 255, 0.45 );
+}
+
+// Persistent ring once a tile is selected as the active section.
+.tile.selected {
+	border-color: rgb( 110, 220, 140 );
+	box-shadow: 0px 0px 0px 2px rgba( 110, 220, 140, 0.55 ) inset;
+}
+
+// Tutorial-locked tile — greyed out, no hover highlight, click silently
+// no-ops (gated in GameMenu.Activate). Applied during the first-launch
+// tutorial to every tile EXCEPT Human Resource so the player has only
+// one path forward. The :hover selectors below override the per-tile
+// .tile-N:hover rules to keep the disabled treatment consistent.
+.tile.disabled,
+.tile.disabled:hover,
+.tile.disabled.hover {
+	background-color: rgba( 255, 255, 255, 0.025 );
+	border-color: rgba( 255, 255, 255, 0.06 );
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+// Explicit box + matching line-height vertically centers the emoji glyph,
+// preventing s&box's text renderer from clipping the top/bottom of the
+// glyph against a tight line-box.
+.tile-icon {
+	width: 100px;
+	height: 100px;
+	flex-shrink: 0;
+	font-size: 80px;
+	line-height: 100px;
+	text-align: center;
+	transform: translateY( -5px );
+}
+
+.tile-label {
+	color: rgba( 255, 255, 255, 0.9 );
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.4px;
+	text-align: center;
+	flex-shrink: 0;
+}
+
+// Per-tile accent so they're distinguishable before icons exist.
+.tile.tile-0 { background-color: rgba( 220,  90,  90, 0.18 ); border-color: rgba( 220,  90,  90, 0.4 ); }
+.tile.tile-1 { background-color: rgba( 230, 140,  60, 0.18 ); border-color: rgba( 230, 140,  60, 0.4 ); }
+.tile.tile-2 { background-color: rgba( 220, 190,  70, 0.18 ); border-color: rgba( 220, 190,  70, 0.4 ); }
+.tile.tile-3 { background-color: rgba(  70, 200, 170, 0.18 ); border-color: rgba(  70, 200, 170, 0.4 ); }
+.tile.tile-4 { background-color: rgba(  80, 170, 230, 0.18 ); border-color: rgba(  80, 170, 230, 0.4 ); }
+.tile.tile-5 { background-color: rgba( 170, 110, 230, 0.18 ); border-color: rgba( 170, 110, 230, 0.4 ); }
+.tile.tile-6 { background-color: rgba( 160, 160, 170, 0.18 ); border-color: rgba( 160, 160, 170, 0.4 ); }
+.tile.tile-7 { background-color: rgba( 110, 210, 140, 0.18 ); border-color: rgba( 110, 210, 140, 0.4 ); }
+.tile.tile-8 { background-color: rgba( 230, 150, 190, 0.18 ); border-color: rgba( 230, 150, 190, 0.4 ); }
+
+.tile.tile-0:hover, .tile.tile-0.hover { background-color: rgba( 220,  90,  90, 0.38 ); border-color: rgb( 220,  90,  90 ); }
+.tile.tile-1:hover, .tile.tile-1.hover { background-color: rgba( 230, 140,  60, 0.38 ); border-color: rgb( 230, 140,  60 ); }
+.tile.tile-2:hover, .tile.tile-2.hover { background-color: rgba( 220, 190,  70, 0.38 ); border-color: rgb( 220, 190,  70 ); }
+.tile.tile-3:hover, .tile.tile-3.hover { background-color: rgba(  70, 200, 170, 0.38 ); border-color: rgb(  70, 200, 170 ); }
+.tile.tile-4:hover, .tile.tile-4.hover { background-color: rgba(  80, 170, 230, 0.38 ); border-color: rgb(  80, 170, 230 ); }
+.tile.tile-5:hover, .tile.tile-5.hover { background-color: rgba( 170, 110, 230, 0.38 ); border-color: rgb( 170, 110, 230 ); }
+.tile.tile-6:hover, .tile.tile-6.hover { background-color: rgba( 160, 160, 170, 0.38 ); border-color: rgb( 160, 160, 170 ); }
+.tile.tile-7:hover, .tile.tile-7.hover { background-color: rgba( 110, 210, 140, 0.38 ); border-color: rgb( 110, 210, 140 ); }
+.tile.tile-8:hover, .tile.tile-8.hover { background-color: rgba( 230, 150, 190, 0.38 ); border-color: rgb( 230, 150, 190 ); }
+
+// ── CONTENT (bottom area) ────────────────────────────────────────────────────
+// Fills remaining vertical space. Description text when nothing's selected,
+// sub-page when a tile is active.
+.content {
+	flex-grow: 1;
+	flex-direction: column;
+	padding: 30px 20px 18px;
+	overflow: hidden;
+}
+
+.hint {
+	color: rgba( 255, 255, 255, 0.85 );
+	font-size: 16px;
+	line-height: 1.5;
+	white-space: normal;
+	padding: 0;
+}
+
+.placeholder {
+	flex-direction: column;
+	gap: 10px;
+	padding: 24px 6px 6px 6px;
+}
+
+.ph-title {
+	color: white;
+	font-size: 18px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.ph-text {
+	color: rgba( 255, 255, 255, 0.6 );
+	font-size: 15px;
+	line-height: 1.4;
+	white-space: normal;
+}
+
+// ── HR section ───────────────────────────────────────────────────────────────
+
+.hr {
+	flex-direction: column;
+	flex-grow: 1;
+	gap: 10px;
+}
+
+.hr-tabs {
+	flex-direction: row;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+.hr-tab {
+	flex-grow: 1;
+	flex-direction: column;
+	align-items: center;
+	padding: 10px 12px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 10px;
+	cursor: pointer;
+	transition: all 0.12s ease-out;
+}
+
+.hr-tab:hover {
+	background-color: rgba( 255, 255, 255, 0.08 );
+	border-color: rgba( 255, 255, 255, 0.3 );
+}
+
+.hr-tab.active {
+	background-color: rgba( 110, 220, 140, 0.18 );
+	border-color: rgb( 110, 220, 140 );
+}
+
+// Tutorial-locked HR tab — same treatment as .tile.disabled. Only the
+// Hire tab stays interactive while the tutorial waits on the first hire.
+.hr-tab.disabled,
+.hr-tab.disabled:hover {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	border-color: rgba( 255, 255, 255, 0.06 );
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.hr-tab-label {
+	color: white;
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.hr-tab-meta {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 11px;
+	margin-top: 2px;
+}
+
+.hr-body {
+	// Canonical scroll-container fix — see GalleryPanel for the rationale.
+	// Without `flex-basis: 0` + `min-height: 0`, yoga can size this container
+	// from intrinsic content under nested flex layouts, leaving the bottom
+	// rows of long applicant / staff lists clipped.
+	flex-direction: column;
+	flex-grow: 1;
+	flex-shrink: 1;
+	flex-basis: 0;
+	min-height: 0;
+	overflow: scroll;
+	gap: 6px;
+	padding-right: 4px;
+}
+
+.hr-summary {
+	color: rgba( 255, 255, 255, 0.6 );
+	font-size: 12px;
+	padding: 0 4px 4px;
+}
+
+.hr-empty {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 14px;
+	padding: 14px 6px;
+	white-space: normal;
+}
+
+// ── HR rows (Hire / Fire) ────────────────────────────────────────────────────
+
+.row {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 8px;
+	flex-shrink: 0;
+}
+
+.row-info {
+	flex-grow: 1;
+	flex-direction: column;
+}
+
+.row-name {
+	flex-direction: row;
+	align-items: center;
+	color: white;
+	font-size: 15px;
+	font-weight: 700;
+}
+
+.row-meta {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	margin-top: 1px;
+}
+
+// ── Special-hire kind pills + row/interview tints ───────────────────────────
+// Each special kind (Mentor / Marketing / Remote / Intern) gets its own
+// accent colour. The pill sits inline next to the applicant's name; the
+// row/interview wrapper picks up a matching border tint so the player can
+// scan the inbox and pick the specials out at a glance.
+
+.kind-pill {
+	background-color: rgba( 255, 255, 255, 0.08 );
+	border: 1px solid rgba( 255, 255, 255, 0.2 );
+	border-radius: 10px;
+	padding: 1px 8px;
+	margin-left: 10px;
+	color: rgba( 255, 255, 255, 0.85 );
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.kind-blurb {
+	color: rgba( 255, 255, 255, 0.65 );
+	font-size: 12px;
+	margin-top: 4px;
+	font-style: italic;
+}
+
+// Mentor — purple (wisdom).
+.kind-pill.kind-mentor {
+	background-color: rgba( 170, 110, 220, 0.2 );
+	border-color: rgba( 170, 110, 220, 0.65 );
+	color: rgb( 215, 175, 245 );
+}
+.row.kind-mentor       { border-color: rgba( 170, 110, 220, 0.5 ); }
+.interview.kind-mentor .interview-head {
+	background-color: rgba( 170, 110, 220, 0.14 );
+	border-color: rgba( 170, 110, 220, 0.55 );
+}
+
+// Marketing Agent — pink (flashy).
+.kind-pill.kind-marketing {
+	background-color: rgba( 240, 110, 190, 0.2 );
+	border-color: rgba( 240, 110, 190, 0.65 );
+	color: rgb( 250, 165, 215 );
+}
+.row.kind-marketing    { border-color: rgba( 240, 110, 190, 0.5 ); }
+.interview.kind-marketing .interview-head {
+	background-color: rgba( 240, 110, 190, 0.14 );
+	border-color: rgba( 240, 110, 190, 0.55 );
+}
+
+// Remote Worker — teal (away from office).
+.kind-pill.kind-remote {
+	background-color: rgba( 80, 200, 210, 0.2 );
+	border-color: rgba( 80, 200, 210, 0.65 );
+	color: rgb( 130, 230, 240 );
+}
+.row.kind-remote       { border-color: rgba( 80, 200, 210, 0.5 ); }
+.interview.kind-remote .interview-head {
+	background-color: rgba( 80, 200, 210, 0.14 );
+	border-color: rgba( 80, 200, 210, 0.55 );
+}
+
+// Intern — blue (junior). Returning interns reuse the same colour but the
+// pill text reads "RETURNING" (set in markup).
+.kind-pill.kind-intern {
+	background-color: rgba( 120, 180, 255, 0.2 );
+	border-color: rgba( 120, 180, 255, 0.65 );
+	color: rgb( 165, 205, 255 );
+}
+.row.kind-intern       { border-color: rgba( 120, 180, 255, 0.5 ); }
+.interview.kind-intern .interview-head {
+	background-color: rgba( 120, 180, 255, 0.14 );
+	border-color: rgba( 120, 180, 255, 0.55 );
+}
+
+.btn {
+	padding: 7px 14px;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 700;
+	color: white;
+	cursor: pointer;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.1s ease-out;
+}
+
+.btn.hire {
+	background-color: rgba( 110, 220, 140, 0.7 );
+	border: 1px solid rgb( 110, 220, 140 );
+}
+.btn.hire:hover {
+	background-color: rgb( 110, 220, 140 );
+}
+
+.btn.reject {
+	width: 28px;
+	padding: 7px 0;
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border: 1px solid rgba( 255, 255, 255, 0.18 );
+}
+.btn.reject:hover {
+	background-color: rgba( 220, 80, 80, 0.6 );
+	border-color: rgb( 220, 80, 80 );
+}
+
+.btn.fire {
+	background-color: rgba( 220, 80, 80, 0.65 );
+	border: 1px solid rgb( 220, 80, 80 );
+}
+.btn.fire:hover {
+	background-color: rgb( 220, 80, 80 );
+}
+
+.btn.interview {
+	background-color: rgba( 80, 170, 230, 0.65 );
+	border: 1px solid rgb( 80, 170, 230 );
+}
+.btn.interview:hover {
+	background-color: rgb( 80, 170, 230 );
+}
+
+.btn.pass {
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border: 1px solid rgba( 255, 255, 255, 0.2 );
+}
+.btn.pass:hover {
+	background-color: rgba( 255, 255, 255, 0.15 );
+}
+
+.energy-tag {
+	color: rgba( 255, 230, 130, 1 );
+	font-size: 11px;
+	font-weight: 700;
+	margin-left: 6px;
+}
+
+// ── Interview reveal view ────────────────────────────────────────────────────
+
+.interview {
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px;
+}
+
+.interview-head {
+	flex-direction: column;
+	gap: 2px;
+	padding: 8px 12px;
+	background-color: rgba( 110, 180, 255, 0.12 );
+	border: 1px solid rgba( 110, 180, 255, 0.4 );
+	border-radius: 8px;
+}
+
+.row-name.big {
+	font-size: 18px;
+}
+
+.abilities {
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.ability {
+	padding: 4px 10px;
+	background-color: rgba( 220, 190, 70, 0.18 );
+	border: 1px solid rgba( 220, 190, 70, 0.55 );
+	border-radius: 999px;
+	color: rgb( 240, 220, 130 );
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.interview-actions {
+	flex-direction: row;
+	gap: 8px;
+	padding-top: 4px;
+}
+
+.interview-actions .btn {
+	flex-grow: 1;
+	padding: 12px 14px;
+	font-size: 14px;
+}
+
+// ── Job posting picker ──────────────────────────────────────────────────────
+
+.posting-row {
+	flex-direction: row;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.12s ease-out;
+	flex-shrink: 0;
+}
+
+.posting-row:hover {
+	background-color: rgba( 255, 255, 255, 0.07 );
+	border-color: rgba( 255, 255, 255, 0.25 );
+}
+
+.posting-row.current {
+	background-color: rgba( 110, 220, 140, 0.16 );
+	border-color: rgb( 110, 220, 140 );
+}
+
+.posting-row.locked {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.posting-row.locked:hover {
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border-color: rgba( 255, 255, 255, 0.08 );
+}
+
+.posting-info {
+	flex-direction: column;
+	flex-grow: 1;
+}
+
+.posting-name {
+	color: white;
+	font-size: 15px;
+	font-weight: 700;
+}
+
+.posting-desc {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	margin-top: 1px;
+	white-space: normal;
+}
+
+.posting-cost {
+	color: rgba( 255, 200, 60, 0.95 );
+	font-size: 13px;
+	font-weight: 700;
+	width: 100px;
+	text-align: right;
+}
+
+.posting-status {
+	width: 64px;
+	text-align: center;
+	padding: 5px 8px;
+	font-size: 12px;
+	font-weight: 700;
+	color: rgba( 255, 255, 255, 0.7 );
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border-radius: 6px;
+}
+
+.posting-row.current .posting-status {
+	color: rgb( 18, 24, 30 );
+	background-color: rgb( 110, 220, 140 );
+}
+
+.posting-lock {
+	color: rgba( 255, 200, 80, 0.85 );
+	font-size: 11px;
+	font-weight: 600;
+	margin-top: 3px;
+	white-space: normal;
+}
+
+// ── Payroll summary (Stats subview header) ───────────────────────────────────
+
+.payroll-summary {
+	flex-direction: column;
+	gap: 4px;
+	padding: 10px 14px;
+	margin-bottom: 6px;
+	background-color: rgba( 255, 200, 60, 0.07 );
+	border: 1px solid rgba( 255, 200, 60, 0.25 );
+	border-radius: 8px;
+	flex-shrink: 0;
+}
+
+.payroll-line {
+	flex-direction: row;
+	align-items: center;
+}
+
+.payroll-label {
+	flex-grow: 1;
+	color: rgba( 255, 255, 255, 0.7 );
+	font-size: 13px;
+}
+
+.payroll-value {
+	color: rgba( 255, 220, 130, 0.95 );
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.payroll-line.total {
+	margin-top: 4px;
+	padding-top: 4px;
+	border-top: 1px solid rgba( 255, 200, 60, 0.25 );
+}
+
+.payroll-line.total .payroll-label {
+	color: white;
+	font-weight: 700;
+}
+
+.payroll-line.total .payroll-value {
+	color: rgb( 255, 200, 60 );
+	font-size: 15px;
+}
+
+// ── HR stat rows ─────────────────────────────────────────────────────────────
+
+.stat-row {
+	flex-direction: column;
+	gap: 6px;
+	padding: 10px 12px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 8px;
+	flex-shrink: 0;
+}
+
+// Founder variant — same layout as a hire's stat row, gold-tinted to match
+// the Create Game panel's founder treatment so the player recognises their
+// own avatar at a glance.
+.stat-row.founder {
+	background-color: rgba( 230, 200, 110, 0.06 );
+	border-color: rgba( 230, 200, 110, 0.45 );
+	margin-bottom: 8px;
+}
+
+.stat-row.founder .row-name {
+	flex-direction: row;
+	align-items: center;
+}
+
+.founder-pill {
+	background-color: rgba( 230, 200, 110, 0.18 );
+	border: 1px solid rgba( 230, 200, 110, 0.6 );
+	border-radius: 10px;
+	padding: 1px 8px;
+	margin-left: 10px;
+	color: rgb( 240, 215, 130 );
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.stat-head {
+	flex-direction: column;
+}
+
+.stat-grid {
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stat-line {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+}
+
+.stat-label {
+	width: 38px;
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.stat-bar {
+	flex-grow: 1;
+	height: 8px;
+	background-color: rgba( 255, 255, 255, 0.08 );
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.stat-fill {
+	height: 100%;
+	background-color: rgb( 110, 220, 140 );
+	border-radius: 4px;
+}
+
+.stat-value {
+	width: 38px;
+	color: white;
+	font-size: 12px;
+	font-weight: 700;
+	text-align: right;
+}
+
+// ── Training section ───────────────────────────────────────────────────────
+// Reuses .hr / .hr-tabs / .hr-body wrappers from the HR section so the visual
+// treatment matches; the lists/grids below are training-specific.
+
+.train-list {
+	flex-direction: column;
+	gap: 8px;
+}
+
+.train-row {
+	flex-direction: row;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 12px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.07 );
+	border-radius: 8px;
+}
+
+.train-row-name {
+	flex-direction: column;
+	width: 180px;
+	flex-shrink: 0;
+}
+
+.train-name-text {
+	color: white;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 0.3px;
+}
+
+.train-name-sub {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 11px;
+	margin-top: 2px;
+}
+
+.train-stat-grid {
+	flex-direction: row;
+	gap: 6px;
+	flex-grow: 1;
+	justify-content: flex-end;
+}
+
+.train-stat-btn {
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	width: 56px;
+	height: 52px;
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background-color 0.1s, transform 0.1s;
+}
+
+.train-stat-btn:hover {
+	background-color: rgba( 110, 220, 140, 0.18 );
+	border-color: rgba( 110, 220, 140, 0.5 );
+	transform: translateY( -1px );
+}
+
+.train-stat-btn.disabled {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	color: rgba( 255, 255, 255, 0.3 );
+	cursor: not-allowed;
+}
+
+.train-stat-btn.disabled:hover {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	border-color: rgba( 255, 255, 255, 0.1 );
+	transform: none;
+}
+
+.train-stat-icon {
+	font-size: 18px;
+}
+
+.train-stat-val {
+	color: rgb( 110, 220, 140 );
+	font-size: 13px;
+	font-weight: 700;
+	margin-top: 2px;
+}
+
+// Group-mode picker — six big buttons, full-width, no per-employee grid.
+
+.train-group-grid {
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.train-group-btn {
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	width: 168px;
+	height: 96px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 10px;
+	cursor: pointer;
+	transition: background-color 0.12s, transform 0.12s, border-color 0.12s;
+}
+
+.train-group-btn:hover {
+	background-color: rgba( 110, 220, 140, 0.15 );
+	border-color: rgba( 110, 220, 140, 0.55 );
+	transform: translateY( -2px );
+}
+
+.train-group-btn.disabled {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	color: rgba( 255, 255, 255, 0.3 );
+	cursor: not-allowed;
+}
+
+.train-group-btn.disabled:hover {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	border-color: rgba( 255, 255, 255, 0.1 );
+	transform: none;
+}
+
+.train-group-icon {
+	font-size: 30px;
+}
+
+.train-group-name {
+	color: white;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	margin-top: 6px;
+}
+
+// ── Save section ───────────────────────────────────────────────────────────
+// Three slot cards side-by-side. Each card shows the saved game's date +
+// in-game day + money, with Save (overwrite) and Load (restore) buttons
+// at the bottom. Visually mirrors the HR Hire / Fire / Stats subview
+// rhythm with rows of cards in the body.
+
+.save-section {
+	flex-direction: column;
+	width: 100%;
+	padding: 18px 24px;
+	gap: 14px;
+}
+
+.save-slots {
+	flex-direction: row;
+	gap: 12px;
+	flex-grow: 1;
+}
+
+.save-slot {
+	flex-grow: 1;
+	flex-direction: column;
+	background-color: rgba( 110, 180, 255, 0.06 );
+	border: 1px solid rgba( 110, 180, 255, 0.30 );
+	border-radius: 10px;
+	padding: 14px 16px;
+}
+
+.save-slot.empty {
+	background-color: rgba( 255, 255, 255, 0.03 );
+	border-color: rgba( 255, 255, 255, 0.10 );
+}
+
+.save-slot-head {
+	flex-direction: column;
+	margin-bottom: 10px;
+}
+
+.save-slot-name {
+	color: white;
+	font-size: 14px;
+	font-weight: 800;
+	letter-spacing: 3px;
+}
+
+.save-slot-date {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	letter-spacing: 0.5px;
+	margin-top: 2px;
+}
+
+.save-slot-body {
+	flex-direction: column;
+	flex-grow: 1;
+	gap: 4px;
+	margin-bottom: 12px;
+}
+
+.save-slot-row {
+	flex-direction: row;
+	align-items: center;
+}
+
+.save-slot-key {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+	width: 60px;
+}
+
+.save-slot-val {
+	color: white;
+	font-size: 13px;
+	font-weight: 600;
+	flex-grow: 1;
+}
+
+.save-slot-empty {
+	color: rgba( 255, 255, 255, 0.4 );
+	font-size: 13px;
+	font-style: italic;
+}
+
+.save-slot-foot {
+	flex-direction: row;
+	gap: 8px;
+}
+
+.save-slot-foot .btn {
+	flex-grow: 1;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	padding: 10px 0;
+	border-radius: 6px;
+	cursor: pointer;
+	border: 1px solid transparent;
+}
+
+.save-slot-foot .save-btn {
+	background-color: rgba( 110, 220, 140, 0.15 );
+	border-color:    rgba( 110, 220, 140, 0.55 );
+}
+.save-slot-foot .save-btn:hover {
+	background-color: rgba( 110, 220, 140, 0.28 );
+}
+
+.save-slot-foot .load-btn {
+	background-color: rgba( 110, 180, 255, 0.15 );
+	border-color:    rgba( 110, 180, 255, 0.55 );
+}
+.save-slot-foot .load-btn:hover {
+	background-color: rgba( 110, 180, 255, 0.28 );
+}
+
+.save-slot-foot .load-btn.disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+.save-slot-foot .load-btn.disabled:hover {
+	background-color: rgba( 110, 180, 255, 0.15 );
+}
+
+.save-btn-label {
+	color: white;
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: 3px;
+}
+
+.save-hint {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 11px;
+	font-style: italic;
+	letter-spacing: 0.5px;
+}
+
+// ── Start New Game (under the save slots) ─────────────────────────────────
+// Big red button so the destructive action reads as destructive at a glance.
+// The two-step confirm is required — single-click would be too easy to mis-fire
+// next to the SAVE / LOAD buttons just above.
+
+.new-game-btn {
+	margin-top: 16px;
+	padding: 12px 20px;
+	background-color: rgba( 200, 60, 60, 0.85 );
+	border: 1px solid rgba( 240, 90, 90, 0.9 );
+	border-radius: 6px;
+	cursor: pointer;
+	align-items: center;
+	justify-content: center;
+}
+
+.new-game-btn:hover {
+	background-color: rgba( 220, 80, 80, 1 );
+}
+
+.new-game-btn-label {
+	color: white;
+	font-size: 13px;
+	font-weight: 800;
+	letter-spacing: 3px;
+}
+
+// ── Restart takeover modal ────────────────────────────────────────────────
+// Top-level priority overlay (z-index above the menu window) so the
+// confirmation can't be lost behind anything else. Yes / No only.
+
+.restart-takeover-backdrop {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.75 );
+	z-index: 200;
+}
+
+.restart-takeover {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 420px;
+	transform: translate( -50%, -50% );
+	background-color: rgba( 30, 14, 14, 0.97 );
+	border: 2px solid rgb( 220, 80, 80 );
+	border-radius: 14px;
+	padding: 28px 32px;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	z-index: 201;
+	box-shadow: 0px 12px 40px 0px rgba( 0, 0, 0, 0.7 );
+}
+
+.restart-takeover-title {
+	color: rgb( 255, 200, 200 );
+	font-size: 22px;
+	font-weight: 800;
+	letter-spacing: 2px;
+}
+
+.restart-takeover-text {
+	color: white;
+	font-size: 16px;
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+
+.restart-takeover-row {
+	flex-direction: row;
+	gap: 12px;
+	width: 100%;
+}
+
+.restart-takeover-no,
+.restart-takeover-yes {
+	flex: 1 1 0;
+	padding: 12px 16px;
+	border-radius: 6px;
+	cursor: pointer;
+	align-items: center;
+	justify-content: center;
+}
+
+.restart-takeover-no {
+	background-color: rgba( 255, 255, 255, 0.10 );
+	border: 1px solid rgba( 255, 255, 255, 0.20 );
+}
+
+.restart-takeover-no:hover {
+	background-color: rgba( 255, 255, 255, 0.18 );
+}
+
+.restart-takeover-yes {
+	background-color: rgba( 200, 60, 60, 0.9 );
+	border: 1px solid rgb( 240, 90, 90 );
+}
+
+.restart-takeover-yes:hover {
+	background-color: rgba( 230, 80, 80, 1 );
+}
+
+.restart-takeover-label {
+	color: white;
+	font-size: 14px;
+	font-weight: 800;
+	letter-spacing: 3px;
+}
+

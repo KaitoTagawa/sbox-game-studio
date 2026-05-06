@@ -1,0 +1,110 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+@* Staff inspection modal. Mirrors InterviewPanel's layout but with every
+   stat revealed (no "?"), an Abilities row, and a single Close button —
+   no hire decision is being made here, the worker is already on staff (or
+   is the founder). Auto-opens whenever HRManager.ViewedWorker is set. *@
+
+<root class="@(IsOpen ? "open" : "closed")">
+	@if ( IsOpen )
+	{
+		<div class="backdrop" onclick=@(() => Close())></div>
+		<div class="card">
+			<div class="card-eyebrow">@(Worker.IsPlayer ? "FOUNDER" : "STAFF")</div>
+			<div class="card-title">@Worker.Name</div>
+
+			<div class="salary-block">
+				<div class="salary-label">@(Worker.IsPlayer ? "ROLE" : "MONTHLY SALARY")</div>
+				<div class="salary-value">
+					@(Worker.IsPlayer
+						? Worker.Role.ToString()
+						: $"${Worker.Salary:N0}")
+				</div>
+			</div>
+
+			<div class="stat-grid">
+				@foreach ( var stat in AllStats )
+				{
+					var raw   = stat.AverageOf( Worker.Stats );
+					var boost = StatBoost;
+					var total = System.Math.Max( 1, raw + boost );
+					<div class="stat-row revealed">
+						<div class="stat-icon">@stat.Icon()</div>
+						<div class="stat-name">@stat.DisplayName()</div>
+						<div class="stat-value @(total > 1000 ? "over-cap" : "")">
+							@total@if ( boost > 0 )
+							{
+								<span class="stat-boost"> (+@boost)</span>
+							}
+						</div>
+					</div>
+				}
+			</div>
+
+			@* Abilities — founder uses PlayerAbility (not surfaced here yet),
+			   hires use up to two EmployeeAbility slots. Render whatever
+			   the worker actually has; render a small "—" placeholder if
+			   the worker has none so the section's height is predictable. *@
+			<div class="abilities-block">
+				<div class="abilities-label">ABILITIES</div>
+				<div class="abilities-list">
+					@if ( Worker.Ability1 is { } a1 )
+					{
+						<div class="ability-chip">@a1.DisplayName()</div>
+					}
+					@if ( Worker.Ability2 is { } a2 )
+					{
+						<div class="ability-chip">@a2.DisplayName()</div>
+					}
+					@if ( Worker.Ability1 is null && Worker.Ability2 is null )
+					{
+						<div class="ability-empty">—</div>
+					}
+				</div>
+			</div>
+
+			<div class="actions">
+				<div class="btn close-btn" onclick=@(() => Close())>Close</div>
+			</div>
+		</div>
+	}
+</root>
+
+@code {
+	private bool       IsOpen => HRManager.Instance?.IsViewingStaff ?? false;
+	private IDevWorker Worker => HRManager.Instance?.ViewedWorker;
+
+	/// Total furniture stat-boost applying to this worker right now —
+	/// studio-wide decor (everyone benefits) PLUS the worker's own desk
+	/// chair / computer / monitor (only their hire benefits). Founder gets
+	/// only the studio half (no desk). Read live so reassigning gear or
+	/// buying decor updates the panel on the next re-render.
+	private int StatBoost
+	{
+		get
+		{
+			int studio = InventoryManager.Instance?.StudioWideStatBoost ?? 0;
+			int desk   = (Worker as EmployeeNPC)?.WorkstationStatBoost ?? 0;
+			return studio + desk;
+		}
+	}
+
+	private static readonly MainStat[] AllStats =
+	{
+		MainStat.Programming, MainStat.Design,    MainStat.Creativity,
+		MainStat.Artistry,    MainStat.Sound,     MainStat.Focus,
+	};
+
+	private void Close() => HRManager.Instance?.CloseWorkerView();
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		IsOpen,
+		Worker?.Name,
+		Worker?.Salary ?? 0,
+		Worker?.Stats?.Overall ?? 0,
+		StatBoost,                       // re-render when furniture changes
+		(int?)Worker?.Ability1 ?? -1,
+		(int?)Worker?.Ability2 ?? -1 );
+}

@@ -1,0 +1,156 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop"></div>
+	<div class="window">
+		@* Phase-driven copy: one modal reused across all five tutorial
+		   prompts. AcknowledgeCurrentPhase marks the current phase as
+		   dismissed; gameplay events (NotifyFirstHire / NotifyProductionBegun
+		   / NotifyBinBought / NotifyStartupTrainingDone / NotifyGamePublished)
+		   advance Phase, which re-arms the modal automatically. *@
+		@if ( IsWelcome )
+		{
+			<div class="badge">👋</div>
+			<div class="title">WELCOME TO BECOME A S&amp;DEV</div>
+			<div class="body">
+				<div class="lead">You've just opened your indie game studio.</div>
+				<div class="line">Press TAB to open the menu.</div>
+				<div class="line">Head to HR and hire your first employee.</div>
+			</div>
+			<div class="footer">
+				<div class="btn begin" onclick=@Acknowledge>Begin</div>
+			</div>
+		}
+		else if ( IsCreateGame )
+		{
+			<div class="badge">🎮</div>
+			<div class="title">FIRST HIRE COMPLETE</div>
+			<div class="body">
+				<div class="lead">Time to design your first game.</div>
+				<div class="line">Open Create Game from the menu.</div>
+				<div class="line">Pick a title, genres, and assign your team.</div>
+			</div>
+			<div class="footer">
+				<div class="btn begin" onclick=@Acknowledge>Got it</div>
+			</div>
+		}
+		else if ( IsEnergyIntro )
+		{
+			<div class="badge">⚡</div>
+			<div class="title">HOW ENERGY WORKS</div>
+			<div class="body">
+				<div class="lead">Energy refills while a game is in production.</div>
+				<div class="line">More employees and higher Focus refill it faster.</div>
+				<div class="line">Spend it on interviews and training between projects.</div>
+			</div>
+			<div class="footer">
+				<div class="btn begin" onclick=@Acknowledge>Got it</div>
+			</div>
+		}
+		else if ( IsBuyBin )
+		{
+			<div class="badge">🗑️</div>
+			<div class="title">DECORATE THE OFFICE</div>
+			<div class="body">
+				<div class="lead">Buy a Bin from the Shop.</div>
+				<div class="line">A clean office inspires your team.</div>
+				<div class="line">Bins are cheap and unlock the next step.</div>
+			</div>
+			<div class="footer">
+				<div class="btn begin" onclick=@Acknowledge>Got it</div>
+			</div>
+		}
+		else if ( IsTraining )
+		{
+			<div class="badge">📚</div>
+			<div class="title">RUN STARTUP TRAINING</div>
+			<div class="body">
+				<div class="lead">Open Training from the menu.</div>
+				<div class="line">Run Start Up Training on your founder.</div>
+				<div class="line">It boosts every stat by 10 — free, on us.</div>
+			</div>
+			<div class="footer">
+				<div class="btn begin" onclick=@Acknowledge>Got it</div>
+			</div>
+		}
+		else if ( IsPublishReady )
+		{
+			<div class="badge">🚀</div>
+			<div class="title">GOOD JOB</div>
+			<div class="body">
+				<div class="lead">Your first game is ready to publish.</div>
+				<div class="line">Click Publish Game to ship it.</div>
+				<div class="line">Once it's out, the studio starts earning.</div>
+			</div>
+			<div class="footer">
+				<div class="btn begin" onclick=@Acknowledge>Got it</div>
+			</div>
+		}
+		else if ( IsBuyChair )
+		{
+			<div class="badge">💺</div>
+			<div class="title">UPGRADE THE OFFICE</div>
+			<div class="body">
+				<div class="lead">Your game is generating money.</div>
+				<div class="line">Time to upgrade your team's desk.</div>
+				<div class="line">Open the Shop and buy a Standard Chair.</div>
+			</div>
+			<div class="footer">
+				<div class="btn begin" onclick=@Acknowledge>Got it</div>
+			</div>
+		}
+		else if ( IsAssignChair )
+		{
+			<div class="badge">🪑</div>
+			<div class="title">ASSIGN THE CHAIR</div>
+			<div class="body">
+				<div class="lead">Open Edit Desks from the menu.</div>
+				<div class="line">Give @HireName the Standard Chair.</div>
+				<div class="line">Better gear means better stats on the job.</div>
+			</div>
+			<div class="footer">
+				<div class="btn begin" onclick=@Acknowledge>Got it</div>
+			</div>
+		}
+		else if ( IsComplete )
+		{
+			<div class="badge">🎉</div>
+			<div class="title">CONGRATULATIONS</div>
+			<div class="body">
+				<div class="lead">You've completed the tutorial.</div>
+				<div class="line">The studio is yours from here on out.</div>
+				<div class="line">Good luck on your S&amp;box development journey.</div>
+			</div>
+			<div class="footer">
+				<div class="btn begin" onclick=@Acknowledge>Begin Exploring</div>
+			</div>
+		}
+	</div>
+</root>
+
+@code {
+	private bool   IsOpen          => TutorialManager.Instance?.IsAnyModalVisible          ?? false;
+	private bool   IsWelcome       => TutorialManager.Instance?.IsWelcomeVisible           ?? false;
+	private bool   IsCreateGame    => TutorialManager.Instance?.IsCreateGameModalVisible   ?? false;
+	private bool   IsEnergyIntro   => TutorialManager.Instance?.IsEnergyIntroVisible       ?? false;
+	private bool   IsBuyBin        => TutorialManager.Instance?.IsBuyBinModalVisible       ?? false;
+	private bool   IsTraining      => TutorialManager.Instance?.IsTrainingModalVisible     ?? false;
+	private bool   IsPublishReady  => TutorialManager.Instance?.IsPublishReadyVisible      ?? false;
+	private bool   IsBuyChair      => TutorialManager.Instance?.IsBuyChairModalVisible     ?? false;
+	private bool   IsAssignChair   => TutorialManager.Instance?.IsAssignChairModalVisible  ?? false;
+	private bool   IsComplete      => TutorialManager.Instance?.IsCompleteModalVisible     ?? false;
+	private string HireName        => TutorialManager.Instance?.FirstHireName              ?? "your hire";
+
+	private void Acknowledge()
+	{
+		TutorialManager.Instance?.AcknowledgeCurrentPhase();
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		System.HashCode.Combine( IsOpen, IsWelcome, IsCreateGame, IsEnergyIntro, IsBuyBin, IsTraining ),
+		System.HashCode.Combine( IsPublishReady, IsBuyChair, IsAssignChair, IsComplete ),
+		(int)(TutorialManager.Instance?.Phase ?? TutorialPhase.Complete),
+		HireName );
+}

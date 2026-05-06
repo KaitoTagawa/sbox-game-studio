@@ -1,0 +1,660 @@
+GalleryPanel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	font-family: Poppins;
+	// Render above the HUD (which has z-index: 1) so toasts and stat pills
+	// don't bleed through the modal.
+	z-index: 100;
+}
+
+GalleryPanel.open {
+	pointer-events: all;
+}
+
+GalleryPanel.closed .backdrop,
+GalleryPanel.closed .window {
+	display: none;
+}
+
+.backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.55 );
+}
+
+.window {
+	// Edge-pinned with percentage margins — yoga handles flex sizing more
+	// reliably when the box is fully constrained on all four sides.
+	//   width  = 100% − 17.5% − 17.5% = 65 %  (35 % narrower than full-bleed)
+	//   height = 100% −  5%   −  5%   = 90 %  (10 % shorter)
+	position: absolute;
+	left:   17.5%;
+	right:  17.5%;
+	top:     5%;
+	bottom:  5%;
+	background-color: rgba( 18, 24, 30, 0.97 );
+	border: 2px solid rgba( 220, 190, 70, 0.5 );
+	border-radius: 14px;
+	flex-direction: column;
+	box-shadow: 0px 10px 40px 0px rgba( 0, 0, 0, 0.6 );
+}
+
+// ── Header ─────────────────────────────────────────────────────────────────
+
+.header {
+	flex-direction: row;
+	align-items: center;
+	padding: 14px 24px;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
+}
+
+.title {
+	color: white;
+	font-size: 26px;
+	font-weight: 700;
+	letter-spacing: 2px;
+	flex-grow: 1;
+}
+
+// ── Section tab strip (Unlocks / Past Games / Trophies) ─────────────────────
+// Lives on its own row beneath the header so the tabs get full-width space
+// regardless of window width — at narrower window sizes they were getting
+// squished into single-character columns when crammed in next to the title.
+
+.section-tabs {
+	flex-direction: row;
+	gap: 8px;
+	padding: 12px 24px;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.06 );
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.sec-tab {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 16px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 10px;
+	cursor: pointer;
+}
+
+.sec-tab:hover {
+	background-color: rgba( 255, 255, 255, 0.08 );
+}
+
+.sec-tab.active {
+	background-color: rgba( 220, 190, 70, 0.18 );
+	border-color: rgb( 220, 190, 70 );
+}
+
+.sec-tab-icon {
+	font-size: 22px;
+}
+
+.sec-tab-label {
+	color: white;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+.sec-tab.active .sec-tab-label {
+	color: rgb( 240, 215, 130 );
+}
+
+.sec-tab-count {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.sec-tab.active .sec-tab-count {
+	color: rgb( 220, 190, 70 );
+}
+
+.close-btn {
+	width: 36px;
+	height: 36px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border-radius: 6px;
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.close-btn:hover {
+	background-color: rgba( 220, 80, 80, 0.6 );
+}
+
+// ── Body ───────────────────────────────────────────────────────────────────
+
+.body {
+	// `flex: 1 1 0` (grow=1, shrink=1, basis=0) forces yoga to compute the
+	// body's height purely from the parent's remaining space — without
+	// `flex-basis: 0`, the default `auto` makes yoga add the content's
+	// intrinsic size on top, which truncates oddly under percentage-sized
+	// parents and leaves a blank slab below the cards.
+	flex-grow: 1;
+	flex-shrink: 1;
+	flex-basis: 0;
+	min-height: 0;
+	flex-direction: column;
+	padding: 22px 28px;
+	// Bottom padding gets clipped by overflow:scroll on some s&box builds,
+	// so we add a tall pad inside via the section containers' margin-bottom
+	// instead — see .unlocks / .past-games / .trophies below.
+	overflow: scroll;
+}
+
+.empty {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 14px;
+	padding: 14px 6px;
+	white-space: normal;
+}
+
+.empty-big {
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 40px 28px;
+	gap: 12px;
+}
+
+.empty-title {
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.empty-text {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 14px;
+	line-height: 1.5;
+	white-space: normal;
+	text-align: center;
+	max-width: 600px;
+}
+
+// ── Unlocks ────────────────────────────────────────────────────────────────
+
+.unlocks {
+	flex-direction: column;
+	gap: 14px;
+	// Critical: the body uses overflow:scroll, and yoga's default flex-shrink
+	// of 1 would let this container squish to fit the body's height — which
+	// silently truncates cards beyond the viewport. flex-shrink:0 forces the
+	// container to take its full content height so scroll works end-to-end.
+	flex-shrink: 0;
+	margin-bottom: 24px;
+}
+
+.filter-tabs {
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.gal-tab {
+	flex-direction: column;
+	align-items: center;
+	padding: 8px 14px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 8px;
+	cursor: pointer;
+	min-width: 110px;
+}
+
+.gal-tab:hover {
+	background-color: rgba( 255, 255, 255, 0.08 );
+}
+
+.gal-tab.active {
+	background-color: rgba( 110, 220, 140, 0.18 );
+	border-color: rgba( 110, 220, 140, 0.6 );
+}
+
+.gal-tab-label {
+	color: white;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+.gal-tab.active .gal-tab-label {
+	color: rgb( 180, 240, 200 );
+}
+
+.gal-tab-count {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 11px;
+	font-weight: 600;
+	margin-top: 2px;
+}
+
+.gal-tab.active .gal-tab-count {
+	color: rgb( 110, 220, 140 );
+}
+
+.card-list {
+	flex-direction: column;
+	gap: 12px;
+	flex-shrink: 0;
+}
+
+// Card auto-sizes around content. No explicit height — yoga in s&box
+// silently squishes children together when card height is forced and the
+// children's natural total exceeds it (e.g., name + meta + description
+// stacking past the cap), which causes the description to render
+// overlapping the meta row. Auto-size + a clear margin-top on the
+// description keeps everything in its lane.
+.gal-card {
+	flex-direction: column;
+	gap: 4px;
+	padding: 12px 24px 16px 24px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 10px;
+	flex-shrink: 0;
+	overflow: visible;
+}
+
+.gal-card.locked   { opacity: 0.55; }
+
+// nowrap on every text row in the card. The s&box yoga renderer doesn't
+// size flex parents around wrapped text, so multi-line descriptions
+// silently overlap the meta row (this was the visible bug here for two
+// sessions). Each line is short enough to fit at the card's natural
+// width; overflow: hidden clips anything that ever does run long.
+.gal-card-name {
+	color: white;
+	font-size: 18px;
+	font-weight: 700;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.gal-card-meta {
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.gal-card-cat {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 1.5px;
+}
+
+.gal-status {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	padding: 5px 12px;
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border-radius: 8px;
+	flex-shrink: 0;
+}
+
+.gal-card.unlocked .gal-status {
+	color: rgb( 110, 220, 140 );
+	background-color: rgba( 110, 220, 140, 0.18 );
+}
+
+// Description: single-line via nowrap. Font dropped 16 → 14px to give
+// the longest catalogued descriptions (e.g. "Reach 1,000,000 monthly
+// players in any released game.") room to fit at the card's natural
+// width. overflow: hidden defends against any future copy that exceeds
+// the card width — better to clip than to overlap the meta row.
+.gal-card-desc {
+	width: 100%;
+	margin-top: 10px;
+	color: rgba( 255, 255, 255, 0.85 );
+	font-size: 14px;
+	font-weight: 500;
+	letter-spacing: 0.2px;
+	white-space: nowrap;
+	overflow: hidden;
+	flex-shrink: 0;
+}
+
+.gal-card-hint {
+	width: 100%;
+	color: rgba( 255, 220, 100, 0.9 );
+	font-size: 13px;
+	font-style: italic;
+	margin-top: 4px;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+// Per-category accent on the left edge.
+.gal-card.cat-achievement { border-color: rgba( 220, 190,  70, 0.45 ); }
+.gal-card.cat-genre       { border-color: rgba( 110, 220, 140, 0.45 ); }
+.gal-card.cat-hire        { border-color: rgba( 170, 110, 220, 0.45 ); }
+.gal-card.cat-speed       { border-color: rgba( 120, 180, 255, 0.45 ); }
+.gal-card.cat-posting     { border-color: rgba( 240, 110, 190, 0.45 ); }
+.gal-card.cat-ability     { border-color: rgba(  80, 200, 210, 0.45 ); }
+
+
+// ── Past games ─────────────────────────────────────────────────────────────
+
+.past-games {
+	flex-direction: column;
+	gap: 12px;
+	flex-shrink: 0;
+	margin-bottom: 24px;
+}
+
+.game-card {
+	flex-direction: column;
+	gap: 10px;
+	padding: 14px 18px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 10px;
+	flex-shrink: 0;
+}
+
+.game-head {
+	flex-direction: row;
+	align-items: baseline;
+}
+
+.game-title {
+	color: white;
+	font-size: 20px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	flex-grow: 1;
+}
+
+.game-date {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.game-genres {
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.game-genre {
+	background-color: rgba( 110, 220, 140, 0.16 );
+	border: 1px solid rgba( 110, 220, 140, 0.45 );
+	border-radius: 10px;
+	padding: 2px 10px;
+	color: rgb( 180, 240, 200 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+.game-stats {
+	flex-direction: row;
+	gap: 28px;
+}
+
+.game-stat {
+	flex-direction: column;
+}
+
+.stat-label-sm {
+	color: rgba( 255, 255, 255, 0.45 );
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+}
+
+.stat-val {
+	color: white;
+	font-size: 18px;
+	font-weight: 700;
+	margin-top: 2px;
+}
+
+.stat-val.score-masterpiece { color: rgb( 240, 215, 130 ); }
+.stat-val.score-great       { color: rgb( 110, 220, 140 ); }
+.stat-val.score-good        { color: rgb( 130, 200, 230 ); }
+.stat-val.score-mixed       { color: rgb( 235, 160, 110 ); }
+.stat-val.score-poor        { color: rgb( 235, 110, 110 ); }
+
+.pillar-points {
+	flex-direction: row;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.06 );
+	border-radius: 8px;
+	padding: 8px 12px;
+	gap: 24px;
+}
+
+.pp-cell {
+	flex-direction: column;
+	flex-grow: 1;
+	align-items: flex-start;
+}
+
+.pp-label {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.pp-value {
+	color: white;
+	font-size: 16px;
+	font-weight: 700;
+	margin-top: 2px;
+}
+
+// ── Reviews tile (per past-game card) ──────────────────────────────────────
+
+.reviews-btn {
+	flex-direction: row;
+	justify-content: center;
+	align-items: center;
+	margin-top: 6px;
+	padding: 8px 14px;
+	background-color: rgba( 110, 180, 255, 0.10 );
+	border: 1px solid rgba( 110, 180, 255, 0.45 );
+	border-radius: 8px;
+	color: rgb( 110, 180, 255 );
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+	cursor: pointer;
+}
+
+.reviews-btn:hover {
+	background-color: rgba( 110, 180, 255, 0.20 );
+}
+
+.reviews-btn.open {
+	background-color: rgba( 110, 180, 255, 0.18 );
+}
+
+.reviews-btn.disabled {
+	color: rgba( 255, 255, 255, 0.35 );
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border-color: rgba( 255, 255, 255, 0.10 );
+	cursor: default;
+}
+
+.reviews-btn.disabled:hover {
+	background-color: rgba( 255, 255, 255, 0.04 );
+}
+
+.reviews-list {
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.review-tile {
+	flex-direction: column;
+	gap: 4px;
+	padding: 8px 12px;
+	background-color: rgba( 255, 255, 255, 0.03 );
+	border-left: 3px solid rgba( 255, 255, 255, 0.20 );
+	border-radius: 4px;
+}
+
+.review-head {
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.review-username {
+	color: rgba( 255, 255, 255, 0.85 );
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+.review-badge {
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 1.2px;
+	color: rgba( 255, 255, 255, 0.55 );
+}
+
+.review-body {
+	color: rgba( 255, 255, 255, 0.75 );
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+// Sentiment tints — left-bar accent + badge colour.
+.review-tile.review-positive {
+	border-left-color: rgb( 120, 210, 130 );
+}
+.review-tile.review-positive .review-badge {
+	color: rgb( 120, 210, 130 );
+}
+
+.review-tile.review-negative {
+	border-left-color: rgb( 230, 110, 110 );
+}
+.review-tile.review-negative .review-badge {
+	color: rgb( 230, 110, 110 );
+}
+
+.review-tile.review-neutral {
+	border-left-color: rgb( 200, 180, 110 );
+}
+.review-tile.review-neutral .review-badge {
+	color: rgb( 200, 180, 110 );
+}
+
+// ── Trophies ───────────────────────────────────────────────────────────────
+
+.trophies {
+	flex-direction: column;
+	gap: 18px;
+	flex-shrink: 0;
+	margin-bottom: 24px;
+}
+
+.trophy-year {
+	flex-direction: column;
+	gap: 8px;
+}
+
+.trophy-year-head {
+	color: rgb( 240, 215, 130 );
+	font-size: 16px;
+	font-weight: 700;
+	letter-spacing: 2px;
+	padding-bottom: 4px;
+	border-bottom: 1px solid rgba( 220, 190, 70, 0.4 );
+}
+
+.trophy-grid {
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.trophy-card {
+	flex-direction: row;
+	align-items: center;
+	gap: 14px;
+	width: 320px;
+	padding: 12px 16px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 10px;
+	flex-shrink: 0;
+}
+
+.trophy-icon {
+	font-size: 36px;
+	width: 48px;
+	text-align: center;
+	flex-shrink: 0;
+}
+
+.trophy-info {
+	flex-direction: column;
+	flex-grow: 1;
+}
+
+.trophy-division {
+	color: rgba( 255, 255, 255, 0.7 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+}
+
+.trophy-game {
+	color: white;
+	font-size: 16px;
+	font-weight: 700;
+	margin-top: 2px;
+}
+
+.trophy-citation {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 11px;
+	font-style: italic;
+	margin-top: 4px;
+	white-space: normal;
+}
+
+// Per-division accent — gold for GotY, others get a subtler tint matching
+// their theme.
+.trophy-card.div-goty {
+	background-color: rgba( 220, 190, 70, 0.14 );
+	border-color: rgba( 220, 190, 70, 0.7 );
+	box-shadow: 0px 0px 18px rgba( 220, 190, 70, 0.25 );
+}
+.trophy-card.div-goty .trophy-game {
+	color: rgb( 240, 215, 130 );
+}
+
+.trophy-card.div-design    { border-color: rgba( 110, 220, 140, 0.5 ); }
+.trophy-card.div-sound     { border-color: rgba( 170, 110, 220, 0.5 ); }
+.trophy-card.div-graphics  { border-color: rgba( 240, 110, 190, 0.5 ); }
+.trophy-card.div-indie     { border-color: rgba( 130, 200, 230, 0.5 ); }
+.trophy-card.div-newcomer  { border-color: rgba(  80, 200, 210, 0.5 ); }
+.trophy-card.div-critics   { border-color: rgba( 235, 160, 110, 0.5 ); }

@@ -1,0 +1,26 @@
+{
+  "publish": {
+    "Enabled": false,
+    "ProjectConfig": {
+      "Title": "Window",
+      "Type": "map",
+      "Org": "local",
+      "Ident": "window",
+      "Schema": 0,
+      "IncludeSourceFiles": false,
+      "Resources": null,
+      "PackageReferences": [],
+      "EditorReferences": [
+        "danivisit.woodenplankfloor#162712",
+        "exorealms.4407851c411bf7d4#92151",
+        "gkaf.door_2#26045",
+        "twothieves.tilefloor001a#159755"
+      ],
+      "Mounts": null,
+      "IsStandaloneOnly": false,
+      "Metadata": {
+        "SingleAssetSource": "window.vmap"
+      }
+    }
+  }
+}

@@ -1,0 +1,489 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop" onclick=@Close></div>
+	<div class="window">
+		<div class="header">
+			<div class="title">TRAINING</div>
+			<div class="wallet">$@MoneyText</div>
+			<div class="energy">@Energy⚡</div>
+			<div class="close-btn" onclick=@Close>×</div>
+		</div>
+
+		@* Group tab deferred to a future release — only Individual + Research
+		   are visible. Re-add the Group tab here when group training comes back. *@
+		@* Group tab deferred to a future release — only Training (formerly
+		   "Individual") + Research are visible. Re-add the Group tab and
+		   rename "Training" back to "Individual" when group training comes back. *@
+		<div class="mode-tabs">
+			<div class="mode-tab @(ActiveMode == TrainingMode.Individual ? "active" : "")"
+			     onclick=@(() => SetMode( TrainingMode.Individual ))>
+				<div class="mode-tab-name">Training</div>
+				<div class="mode-tab-meta">@IndividualOffers.Count offer@(IndividualOffers.Count == 1 ? "" : "s")</div>
+			</div>
+			<div class="mode-tab @(ActiveMode == TrainingMode.Research ? "active" : "")"
+			     onclick=@(() => SetMode( TrainingMode.Research ))>
+				<div class="mode-tab-name">Research</div>
+				<div class="mode-tab-meta">Long-term, on-desk</div>
+			</div>
+		</div>
+
+		<div class="body">
+			@* Tutorial-only banner: appears during the StartupTraining
+			   phase. One click runs the founder's "Start Up Training"
+			   (free, instant, +10 to all 6 stats), then notifies the
+			   tutorial which fast-completes the in-flight project. *@
+			@if ( ShowTutorialStartupCta )
+			{
+				<div class="tutorial-startup">
+					<div class="ts-icon">📚</div>
+					<div class="ts-info">
+						<div class="ts-title">START UP TRAINING</div>
+						<div class="ts-sub">Boost every founder stat by +10 — free, instant.</div>
+					</div>
+					<div class="ts-btn" onclick=@RunStartupTraining>Run Training</div>
+				</div>
+			}
+
+			@if ( ActiveMode == TrainingMode.Individual )
+			{
+				@* ── INDIVIDUAL ───────────────────────────────────────────── *@
+				<div class="cols">
+					<div class="col col-staff">
+						<div class="col-title">STAFF</div>
+						@if ( IndividualCandidates.Count == 0 )
+						{
+							<div class="ph-text">No staff yet — hire someone in HR.</div>
+						}
+						else
+						{
+							@foreach ( var w in IndividualCandidates )
+							{
+								var worker = w;
+								<div class="staff-card @(ResolvedSelected == worker ? "selected" : "")">
+									<div class="staff-card-body" onclick=@(() => SelectedWorker = worker)>
+										<div class="staff-name">@worker.Name</div>
+									</div>
+								</div>
+							}
+						}
+					</div>
+
+					<div class="col col-offers">
+						<div class="col-title">OFFERS · @ApplicableOffers.Count / @MaxQueue</div>
+						@if ( ApplicableOffers.Count == 0 )
+						{
+							<div class="empty-large">No training</div>
+						}
+						else
+						{
+							@foreach ( var off in ApplicableOffers )
+							{
+								var offer = off;
+								var info  = offer.TierInfo;
+								var canStart = CanStartIndividual( offer );
+								<div class="offer-card @(canStart ? "" : "disabled") @TierClass( offer.Tier )"
+								     onclick=@(() => StartIndividual( offer ))>
+									<div class="offer-head">
+										<div class="offer-name">@offer.Name</div>
+										<div class="offer-tier-pill">@info.Name</div>
+									</div>
+									<div class="offer-stat-block">
+										<div class="offer-ticks">@RewardTicks( info.RewardTicks )</div>
+										<div class="offer-stat-icon">@offer.Stat.Icon()</div>
+										<div class="offer-stat-label">@offer.Stat.DisplayName()</div>
+									</div>
+									<div class="offer-foot">
+										<div class="offer-cost">$@info.IndividualCost.ToString("N0")</div>
+										<div class="offer-energy">@info.IndividualEnergyCost⚡</div>
+										<div class="offer-time">@(info.DurationDays == 0 ? "INSTANT" : $"{info.DurationDays} days")</div>
+									</div>
+									<div class="offer-reject" onclick=@(() => RejectOffer( offer ))>×</div>
+								</div>
+							}
+						}
+					</div>
+				</div>
+			}
+			else
+			{
+				@* ── RESEARCH ─────────────────────────────────────────────── *@
+
+				<div class="cols">
+					<div class="col col-staff">
+						<div class="col-title">RESEARCHER</div>
+						@foreach ( var w in AllWorkers )
+						{
+							var worker = w;
+							<div class="staff-card @(ResolvedSelected == worker ? "selected" : "")">
+								<div class="staff-card-body" onclick=@(() => SelectedWorker = worker)>
+									<div class="staff-name">@worker.Name</div>
+								</div>
+							</div>
+						}
+					</div>
+
+					<div class="col col-research">
+						<div class="col-title">TOPICS</div>
+						@if ( ResearchPanelTopics.Count == 0 )
+						{
+							<div class="empty-large">No research</div>
+						}
+						else
+						{
+							@foreach ( var t in ResearchPanelTopics )
+							{
+								var topic   = t;
+								var assigned = WorkerOnTopic( topic.Id );
+								var current  = ResolvedSelected;
+								var canStart = current is not null
+								            && string.IsNullOrEmpty( current.ResearchTopicId )
+								            && current.ActiveTraining is null
+								            && assigned is null;
+								var totalDays = current is not null
+									? TrainingManager.ResearchTotalDays( topic, current )
+									: topic.BaseDays;
+								var energy    = TrainingManager.Instance?.ResearchEnergyCostFor( topic ) ?? 3;
+								<div class="research-topic-card @(canStart ? "" : "disabled")"
+								     onclick=@(() => StartResearch( topic.Id ))>
+									<div class="research-topic-head">
+										<div class="research-topic-name">@topic.Name</div>
+										@if ( topic.UnlocksGenre is { } g )
+										{
+											<div class="research-topic-genre">@(GameGenres.Get( g )?.Name ?? g.ToString())</div>
+										}
+									</div>
+									<div class="research-topic-stat">
+										<div class="research-topic-stat-icon">@topic.PrimaryStat.Icon()</div>
+										<div class="research-topic-stat-name">@topic.PrimaryStat.DisplayName()</div>
+									</div>
+									<div class="research-topic-foot">
+										<div class="research-topic-time">~@($"{totalDays:0.#}") days</div>
+										<div class="research-topic-energy">@energy⚡</div>
+									</div>
+									@if ( assigned is not null )
+									{
+										@* Time-left only — full "{name} · {done}/{total} days"
+										   string mixed text + `@()` interpolations on one
+										   row, which yoga rendered as scrambled fragments
+										   ("·daysNia Chen7 / 23.3"). Two single-text-run
+										   children sidestep the bug. *@
+										<div class="research-topic-active">
+											@* yoga eats the space between literal text and an
+											   `@(...)` value when they share a single text run.
+											   Bake the label into the format string so the
+											   whole thing comes out as one interpolation —
+											   "Days left: 16.6" instead of "16.6days left". *@
+											<div class="research-topic-active-time">
+												@($"Days left: {(TrainingManager.ResearchTotalDays( topic, assigned ) - assigned.DaysIntoCurrentResearch):0.#}")
+											</div>
+											<div class="research-cancel-mini" onclick=@(() => CancelResearch( assigned ))>cancel</div>
+										</div>
+									}
+								</div>
+							}
+						}
+					</div>
+				</div>
+			}
+		</div>
+	</div>
+</root>
+
+@code {
+	// ── Modal state pulled from TrainingManager ──────────────────────────────
+
+	private bool IsOpen => TrainingManager.Instance?.IsOpen ?? false;
+
+	private void Close() => TrainingManager.Instance?.SetOpen( false );
+
+	// ── Tutorial: Start Up Training CTA ───────────────────────────────────────
+	// Visible only during the tutorial's StartupTraining phase. One click:
+	// boosts every founder sub-stat by 10, fires the tutorial advance hook
+	// (which also fast-completes the in-flight project), and closes the
+	// training panel so the player sees the auto-popped Publish UI.
+
+	private bool ShowTutorialStartupCta =>
+		(TutorialManager.Instance?.IsStartupTrainingStepActive ?? false)
+		&& !(TutorialManager.Instance?.StartupTrainingDone ?? false);
+
+	private void RunStartupTraining()
+	{
+		var founder = PlayerStats.Instance;
+		if ( founder?.Stats is null )
+		{
+			Log.Warning( "[Tutorial] RunStartupTraining: PlayerStats / Stats missing." );
+			return;
+		}
+
+		founder.Stats.BoostAll( 10 );
+
+		Notifications.Push( "Start Up Training",
+			"Founder gained +10 across every stat.",
+			"success", duration: 6f );
+		Log.Info( "[Tutorial] Start Up Training applied — founder +10 all stats." );
+
+		// Advance the tutorial: this also fast-completes the in-flight
+		// project so the player skips the production wait. Close the
+		// training modal so the auto-opened Publish UI takes focus.
+		TutorialManager.Instance?.NotifyStartupTrainingDone();
+		TrainingManager.Instance?.SetOpen( false );
+	}
+
+	// ── Mode tabs (Individual / Group / Research) ────────────────────────────
+
+	private TrainingMode _mode = TrainingMode.Individual;
+	private TrainingMode ActiveMode => _mode;
+	private void SetMode( TrainingMode m )
+	{
+		_mode = m;
+		// Reset per-tab picks when switching so the next tab starts fresh.
+		// SelectedWorker = null falls back to founder via ResolvedSelected.
+		SelectedWorker = null;
+	}
+
+	private IDevWorker SelectedWorker;
+
+	// ── Data sources ─────────────────────────────────────────────────────────
+
+	private long Money => GameManager.Instance?.Money ?? 0;
+	private int  Energy => GameManager.Instance?.Energy ?? 0;
+	private string MoneyText => Money.ToString( "N0" );
+
+
+	private float GroupCostMultiplier        => TrainingManager.Instance?.GroupCostMultiplier        ?? 1.5f;
+	private float ResearchProductivityFactor => TrainingManager.Instance?.ResearchProductivityFactor ?? 0.8f;
+	private int   MaxQueue                   => TrainingManager.Instance?.MaxOffersInQueue           ?? 6;
+	private float SecondsBetweenOffers       => TrainingManager.Instance?.SecondsBetweenOffers       ?? 60f;
+
+	private IReadOnlyList<TrainingOffer> AllOffers =>
+		TrainingManager.Instance?.Offers ?? System.Array.Empty<TrainingOffer>();
+
+	private IReadOnlyList<TrainingOffer> IndividualOffers
+	{
+		get
+		{
+			var list = new List<TrainingOffer>();
+			foreach ( var o in AllOffers )
+				if ( o.Mode == TrainingMode.Individual ) list.Add( o );
+			return list;
+		}
+	}
+
+	private IReadOnlyList<TrainingOffer> GroupOffers
+	{
+		get
+		{
+			var list = new List<TrainingOffer>();
+			foreach ( var o in AllOffers )
+				if ( o.Mode == TrainingMode.Group ) list.Add( o );
+			return list;
+		}
+	}
+
+	/// Workers shown in the Individual STAFF column — founder + every hire.
+	private IReadOnlyList<IDevWorker> IndividualCandidates => AllWorkers;
+
+	/// Defaults the Training tab's selected worker to the founder so the
+	/// player has *something* picked the moment they open the panel.
+	/// Hires can be selected explicitly; this just fills in until then.
+	private IDevWorker ResolvedSelected =>
+		SelectedWorker ?? PlayerStats.Instance;
+
+	/// Offers the currently-selected worker can actually start. Filters out
+	/// off-site tiers (DurationDays > 0) when the selection is the founder
+	/// — the founder can never go off-site, so showing offers they can't
+	/// accept just clutters the queue.
+	private IReadOnlyList<TrainingOffer> ApplicableOffers
+	{
+		get
+		{
+			var list   = new List<TrainingOffer>();
+			var worker = ResolvedSelected;
+			foreach ( var o in IndividualOffers )
+			{
+				if ( worker is { IsPlayer: true } && o.TierInfo.DurationDays > 0 )
+					continue;
+				list.Add( o );
+			}
+			return list;
+		}
+	}
+
+	private IReadOnlyList<IDevWorker> AllWorkers
+	{
+		get
+		{
+			var list = new List<IDevWorker>();
+			if ( PlayerStats.Instance is { } me ) list.Add( me );
+			var hr = HRManager.Instance;
+			if ( hr is not null )
+				foreach ( var npc in hr.Staff ) list.Add( npc );
+			return list;
+		}
+	}
+
+
+	private bool CanStartIndividual( TrainingOffer offer )
+	{
+		if ( offer is null )                       return false;
+		var worker = ResolvedSelected;
+		if ( worker is null )                       return false;
+
+		var info       = offer.TierInfo;
+		bool isInstant = info.DurationDays == 0;
+
+		if ( Money  < info.IndividualCost )         return false;
+		if ( Energy < info.IndividualEnergyCost )   return false;
+		if ( !isInstant && worker.IsPlayer )        return false;
+		if ( !isInstant && worker.ActiveTraining is not null ) return false;
+		return true;
+	}
+
+	private int GroupCountFor( TrainingOffer offer )
+	{
+		var hr = HRManager.Instance;
+		if ( hr is null ) return 0;
+		bool isInstant = offer is { TierInfo: { DurationDays: 0 } };
+		int n = 0;
+		foreach ( var npc in hr.Staff )
+		{
+			if ( !isInstant && npc.ActiveTraining is not null ) continue;
+			n++;
+		}
+		return n;
+	}
+
+	// ── Click handlers ───────────────────────────────────────────────────────
+
+	private void StartIndividual( TrainingOffer offer )
+	{
+		var worker = ResolvedSelected;
+		if ( worker is null ) return;
+		TrainingManager.Instance?.TrainIndividual( worker, offer, offer.Stat );
+	}
+
+	private void StartGroup( TrainingOffer offer )
+	{
+		TrainingManager.Instance?.TrainGroup( offer, offer.Stat );
+	}
+
+	private void RejectOffer( TrainingOffer offer )
+	{
+		TrainingManager.Instance?.RejectOffer( offer );
+	}
+
+	// ── Research handlers ────────────────────────────────────────────────────
+
+	private void StartResearch( string topicId )
+	{
+		var worker = ResolvedSelected;
+		if ( worker is null ) return;
+		TrainingManager.Instance?.StartResearch( worker, topicId );
+	}
+
+	private void CancelResearch( IDevWorker worker )
+	{
+		TrainingManager.Instance?.CancelResearch( worker );
+	}
+
+	/// Topics currently visible in the player's research inbox. The inbox
+	/// is filled by <see cref="TrainingManager.TryRollResearchTopic"/> at a
+	/// monthly cadence — at game start the inbox holds just one seeded
+	/// topic, then grows as in-game time passes. Player only sees what's
+	/// been "discovered"; the full catalogue stays hidden until rolled.
+	private IReadOnlyList<ResearchTopic> ResearchPanelTopics
+	{
+		get
+		{
+			var list = new List<ResearchTopic>();
+			var mgr  = TrainingManager.Instance;
+			if ( mgr is null ) return list;
+			foreach ( var id in mgr.ResearchInbox )
+			{
+				var t = ResearchTopics.Get( id );
+				if ( t is not null ) list.Add( t );
+			}
+			return list;
+		}
+	}
+
+	/// First worker currently researching the given topic id, or null.
+	/// Drives the per-card "X is on this · Y/Z days · cancel" footer.
+	private IDevWorker WorkerOnTopic( string topicId )
+	{
+		foreach ( var w in AllWorkers )
+			if ( w.ResearchTopicId == topicId ) return w;
+		return null;
+	}
+
+	// ── Display helpers ──────────────────────────────────────────────────────
+
+	private static string RewardTicks( int count )
+	{
+		var sb = new System.Text.StringBuilder();
+		for ( int i = 0; i < count; i++ ) sb.Append( "✓" );
+		return sb.ToString();
+	}
+
+private static string ReturnLabel( TrainingSession s )
+	{
+		if ( s is null ) return "—";
+		string[] m = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+		int idx = System.Math.Clamp( s.EndMonth - 1, 0, 11 );
+		return $"{m[idx]} {s.EndDay}, Y{s.EndYear}";
+	}
+
+	/// CSS modifier per tier so the offer card can pick a tier-coloured pill
+	/// (gold for Premium etc.). Keeps the styling differentiated without
+	/// introducing a new layout.
+	private static string TierClass( TrainingTier t ) => t switch
+	{
+		TrainingTier.Instant  => "tier-instant",
+		TrainingTier.Basic    => "tier-basic",
+		TrainingTier.Standard => "tier-standard",
+		TrainingTier.Premium  => "tier-premium",
+		_                     => "",
+	};
+
+	// ── Re-render trigger ────────────────────────────────────────────────────
+
+	private long TrainingStateProxy
+	{
+		get
+		{
+			long sum = 0;
+			foreach ( var w in AllWorkers )
+			{
+				if ( w.ActiveTraining is { } s )
+					sum += s.EndYear * 10000L + s.EndMonth * 100L + s.EndDay;
+				if ( !string.IsNullOrEmpty( w.ResearchTopicId ) )
+					sum += w.ResearchTopicId.GetHashCode() + (long)(w.DaysIntoCurrentResearch * 10f);
+			}
+			return sum;
+		}
+	}
+
+	private int StaffOverallSum
+	{
+		get
+		{
+			int sum = PlayerStats.Instance?.Stats?.Overall ?? 0;
+			var hr = HRManager.Instance;
+			if ( hr is not null )
+				foreach ( var npc in hr.Staff ) sum += npc.Stats?.Overall ?? 0;
+			return sum;
+		}
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		IsOpen,
+		(int)_mode,
+		ResolvedSelected?.Name,
+		Money,
+		Energy,
+		AllOffers.Count,
+		AllWorkers.Count + StaffOverallSum + (int)TrainingStateProxy );
+}

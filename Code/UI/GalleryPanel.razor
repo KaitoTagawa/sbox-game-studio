@@ -1,0 +1,527 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop" onclick=@Close></div>
+	<div class="window">
+		<div class="header">
+			<div class="title">GALLERY</div>
+			<div class="close-btn" onclick=@Close>×</div>
+		</div>
+
+		@* Section tabs on their own row — keeps the header tidy and gives the
+		   tabs enough horizontal space at any window width. *@
+		<div class="section-tabs">
+			@foreach ( var s in SectionTabs )
+			{
+				var sec = s;
+				<div class="sec-tab @(ActiveSection == sec.Id ? "active" : "")"
+				     onclick=@(() => SetSection( sec.Id ))>
+					<div class="sec-tab-icon">@sec.Icon</div>
+					<div class="sec-tab-label">@sec.Label</div>
+					<div class="sec-tab-count">@sec.Count</div>
+				</div>
+			}
+		</div>
+
+		<div class="body">
+			@* ── UNLOCKS ─────────────────────────────────────────────────── *@
+			@if ( ActiveSection == GallerySection.Unlocks )
+			{
+				<div class="unlocks">
+					<div class="filter-tabs">
+						@foreach ( var f in FilterTabs )
+						{
+							var ft = f;
+							<div class="gal-tab @(ActiveFilter == ft.Id ? "active" : "")"
+							     onclick=@(() => SetFilter( ft.Id ))>
+								<div class="gal-tab-label">@ft.Label</div>
+								<div class="gal-tab-count">@ft.UnlockedCount / @ft.TotalCount</div>
+							</div>
+						}
+					</div>
+
+					<div class="card-list">
+						@if ( CurrentEntries.Count == 0 )
+						{
+							<div class="empty">Nothing in this category yet.</div>
+						}
+						else
+						{
+							@foreach ( var entry in CurrentEntries )
+							{
+								var e = entry;
+								<div class="gal-card @(e.IsUnlocked ? "unlocked" : "locked") @e.CategoryClass">
+									<div class="gal-card-name">@e.Name</div>
+									<div class="gal-card-meta">
+										<div class="gal-card-cat">@e.CategoryLabel</div>
+										<div class="gal-status">@(e.IsUnlocked ? "Unlocked" : "Locked")</div>
+									</div>
+									<div class="gal-card-desc">@e.Description</div>
+									@if ( !e.IsUnlocked && !string.IsNullOrEmpty( e.UnlockHint ) )
+									{
+										<div class="gal-card-hint">🔒 @e.UnlockHint</div>
+									}
+								</div>
+							}
+						}
+					</div>
+				</div>
+			}
+
+			@* ── PAST GAMES ──────────────────────────────────────────────── *@
+			else if ( ActiveSection == GallerySection.PastGames )
+			{
+				<div class="past-games">
+					@if ( ShippedGames.Count == 0 )
+					{
+						<div class="empty-big">
+							<div class="empty-title">No games shipped yet</div>
+						</div>
+					}
+					else
+					{
+						@foreach ( var g in ShippedGames )
+						{
+							var game = g;
+							<div class="game-card">
+								<div class="game-head">
+									<div class="game-title">@game.Title</div>
+									<div class="game-date">@game.ShipDateLabel</div>
+								</div>
+
+								<div class="game-genres">
+									@foreach ( var tag in game.Genres )
+									{
+										var info = GameGenres.Get( tag );
+										<div class="game-genre">@info.Name</div>
+									}
+								</div>
+
+								<div class="game-stats">
+									<div class="game-stat">
+										<div class="stat-label-sm">SCORE</div>
+										<div class="stat-val score @ScoreClass( game.ReviewScore )">
+											@(game.ReviewReleased ? $"{game.ReviewScore} / 100" : "pending")
+										</div>
+									</div>
+									<div class="game-stat">
+										<div class="stat-label-sm">@(game.ReleaseActive ? "EARNED" : "SALES")</div>
+										<div class="stat-val">$@((game.ReleaseActive ? game.RevenueEarned : game.TotalSales).ToString("N0"))</div>
+									</div>
+									<div class="game-stat">
+										<div class="stat-label-sm">PLAYERS</div>
+										<div class="stat-val">@game.PlayerCount.ToString("N0")</div>
+									</div>
+									<div class="game-stat">
+										<div class="stat-label-sm">TOTAL SESSIONS</div>
+										<div class="stat-val">@game.TotalSessions.ToString("N0")</div>
+									</div>
+									<div class="game-stat">
+										<div class="stat-label-sm">AVG SESSION</div>
+										<div class="stat-val">@($"{game.AvgSessionMinutes:0.#} min")</div>
+									</div>
+								</div>
+
+								<div class="pillar-points">
+									<div class="pp-cell"><div class="pp-label">DESIGN</div>   <div class="pp-value">@game.DesignPoints</div></div>
+									<div class="pp-cell"><div class="pp-label">SOUND</div>    <div class="pp-value">@game.SoundPoints</div></div>
+									<div class="pp-cell"><div class="pp-label">GRAPHICS</div> <div class="pp-value">@game.GraphicsPoints</div></div>
+								</div>
+
+								@* Player reviews are available the moment the game ships
+								   (the aggregate critic score is the part still gated
+								   behind the 2-week ReviewDelayDays window — see the
+								   SCORE stat above). *@
+								<div class="reviews-btn @(IsExpanded( game ) ? "open" : "")"
+								     onclick=@(() => ToggleReviews( game ))>
+									@(IsExpanded( game ) ? "▾ Hide Reviews" : "▸ Read Reviews")
+								</div>
+
+								@if ( IsExpanded( game ) )
+								{
+									<div class="reviews-list">
+										@foreach ( var r in ReviewsFor( game ) )
+										{
+											<div class="review-tile review-@r.Sentiment.ToString().ToLower()">
+												<div class="review-head">
+													<div class="review-username">@r.Username</div>
+													<div class="review-badge">@SentimentLabel( r.Sentiment )</div>
+												</div>
+												<div class="review-body">@r.Body</div>
+											</div>
+										}
+									</div>
+								}
+							</div>
+						}
+					}
+				</div>
+			}
+
+			@* ── TROPHIES ────────────────────────────────────────────────── *@
+			else
+			{
+				<div class="trophies">
+					@if ( Trophies.Count == 0 )
+					{
+						<div class="empty-big">
+							<div class="empty-title">No trophies yet</div>
+						</div>
+					}
+					else
+					{
+						@foreach ( var year in TrophyYears )
+						{
+							var y = year;
+							<div class="trophy-year">
+								<div class="trophy-year-head">@y Awards</div>
+								<div class="trophy-grid">
+									@foreach ( var t in TrophiesForYear( y ) )
+									{
+										var trophy = t;
+										<div class="trophy-card @trophy.Division.BadgeClass()">
+											<div class="trophy-icon">@trophy.Division.Icon()</div>
+											<div class="trophy-info">
+												<div class="trophy-division">@trophy.Division.DisplayName()</div>
+												<div class="trophy-game">@trophy.GameTitle</div>
+												@if ( !string.IsNullOrEmpty( trophy.Citation ) )
+												{
+													<div class="trophy-citation">@trophy.Citation</div>
+												}
+											</div>
+										</div>
+									}
+								</div>
+							</div>
+						}
+					}
+				</div>
+			}
+		</div>
+	</div>
+</root>
+
+@code {
+	// ── State pulled from Gallery singleton ─────────────────────────────────
+
+	private bool           IsOpen        => Gallery.Instance?.IsOpen              ?? false;
+	private GallerySection ActiveSection => Gallery.Instance?.ActiveSection       ?? GallerySection.Unlocks;
+	private UnlocksFilter  ActiveFilter  => Gallery.Instance?.ActiveUnlocksFilter ?? UnlocksFilter.All;
+
+	/// Most-recent-first view of <see cref="Gallery.ShippedGames"/>. The
+	/// underlying list is append-only (publish order = oldest first), so we
+	/// reverse here for the panel render. Cheap — a few allocations per
+	/// gallery rebuild, list never gets large in practice.
+	private IReadOnlyList<ShippedGame> ShippedGames
+	{
+		get
+		{
+			var src = Gallery.Instance?.ShippedGames;
+			if ( src is null || src.Count == 0 ) return System.Array.Empty<ShippedGame>();
+			var ordered = new ShippedGame[src.Count];
+			for ( int i = 0; i < src.Count; i++ )
+				ordered[i] = src[src.Count - 1 - i];
+			return ordered;
+		}
+	}
+
+	private IReadOnlyList<Trophy> Trophies =>
+		Gallery.Instance?.Trophies ?? System.Array.Empty<Trophy>();
+
+	private void SetSection( GallerySection s ) => Gallery.Instance?.SetSection( s );
+	private void SetFilter ( UnlocksFilter  f ) => Gallery.Instance?.SetUnlocksFilter( f );
+	private void Close()                        => Gallery.Instance?.SetOpen( false );
+
+	// ── Section tabs (top of header) ────────────────────────────────────────
+
+	private sealed record SectionTabInfo(
+		GallerySection Id,
+		string         Label,
+		string         Icon,
+		string         Count );
+
+	private IReadOnlyList<SectionTabInfo> SectionTabs
+	{
+		get
+		{
+			int unlocks  = BuildEntries().Count( e => e.IsUnlocked );
+			int unTotal  = BuildEntries().Count();
+			return new SectionTabInfo[]
+			{
+				new( GallerySection.Unlocks,   "Unlocks",    "🔓", $"{unlocks} / {unTotal}" ),
+				new( GallerySection.PastGames, "Past Games", "🎮", $"{ShippedGames.Count}"   ),
+				new( GallerySection.Trophies,  "Trophies",   "🏆", $"{Trophies.Count}"       ),
+			};
+		}
+	}
+
+	// ── Unlocks: filter tabs ───────────────────────────────────────────────
+
+	private sealed record FilterTabInfo(
+		UnlocksFilter Id,
+		string        Label,
+		int           UnlockedCount,
+		int           TotalCount );
+
+	private static readonly (UnlocksFilter Id, string Label)[] FilterLabels =
+	{
+		( UnlocksFilter.All,          "All"           ),
+		( UnlocksFilter.Achievements, "Achievements"  ),
+		( UnlocksFilter.Genres,       "Genres"        ),
+		( UnlocksFilter.Hires,        "Special Hires" ),
+		( UnlocksFilter.Speed,        "Game Speed"    ),
+		( UnlocksFilter.Postings,     "Job Postings"  ),
+		( UnlocksFilter.Abilities,    "Hire Traits"   ),
+	};
+
+	private IReadOnlyList<FilterTabInfo> FilterTabs
+	{
+		get
+		{
+			var entries = BuildEntries().ToList();
+			var result  = new List<FilterTabInfo>( FilterLabels.Length );
+
+			foreach ( var (id, label) in FilterLabels )
+			{
+				if ( id == UnlocksFilter.All )
+				{
+					result.Add( new( id, label,
+						entries.Count( x => x.IsUnlocked ),
+						entries.Count ) );
+				}
+				else
+				{
+					var slice = entries.Where( x => x.Filter == id ).ToList();
+					result.Add( new( id, label,
+						slice.Count( x => x.IsUnlocked ),
+						slice.Count ) );
+				}
+			}
+			return result;
+		}
+	}
+
+	private IReadOnlyList<UnlockEntry> CurrentEntries
+	{
+		get
+		{
+			// Only unlocked entries are visible in the list — locked items
+			// were too noisy and gave away upcoming content. The filter-tab
+			// counts still show "unlocked / total" (computed from
+			// BuildEntries) so the player still sees progress without the
+			// list itself spoiling everything.
+			var entries = BuildEntries().Where( x => x.IsUnlocked );
+			if ( ActiveFilter != UnlocksFilter.All )
+				entries = entries.Where( x => x.Filter == ActiveFilter );
+			return entries.ToList();
+		}
+	}
+
+	// ── Unlocks: entry source ──────────────────────────────────────────────
+
+	private sealed record UnlockEntry(
+		string        Name,
+		string        Description,
+		string        CategoryLabel,
+		string        CategoryClass,
+		bool          IsUnlocked,
+		string        UnlockHint,
+		UnlocksFilter Filter );
+
+	private IEnumerable<UnlockEntry> BuildEntries()
+	{
+		// Achievements. Entries flagged IsHidden are completely invisible
+		// until unlocked — they don't show in the list, don't count toward
+		// the "Achievements N / M" tally, and the player has no way to know
+		// they exist until they earn them. Regular (non-hidden) locked
+		// achievements still appear as progression goals.
+		foreach ( var ach in Achievements.All )
+		{
+			var unlocked = Achievements.IsUnlocked( ach.Id );
+			if ( ach.IsHidden && !unlocked ) continue;
+
+			yield return new(
+				Name:          ach.Name,
+				Description:   ach.Description,
+				CategoryLabel: "Achievement",
+				CategoryClass: "cat-achievement",
+				IsUnlocked:    unlocked,
+				UnlockHint:    "",
+				Filter:        UnlocksFilter.Achievements );
+		}
+
+		// Genres
+		foreach ( var g in GameGenres.All )
+		{
+			var unlocked = GameGenres.IsUnlocked( g.Genre );
+			yield return new( g.Name,
+				g.Description,
+				"Genre", "cat-genre",
+				unlocked, BuildAchievementHint( unlocked, g.RequiredAchievement ),
+				UnlocksFilter.Genres );
+		}
+
+		// Special hires — TEMPORARILY disabled while the system is
+		// reworked. The four real kinds (Mentor / Marketing Agent /
+		// Remote Worker / Intern) are stand-in'd by a single
+		// "Coming Soon" placeholder so the filter tab isn't an empty
+		// shelf. Restore the per-kind loop below to re-enable.
+		yield return new(
+			Name:          "Special Hires (Coming Soon)",
+			Description:   "Mentor, Marketing Agent, Remote Worker, and Intern hires are being reworked. They'll return in a future update.",
+			CategoryLabel: "Special Hire",
+			CategoryClass: "cat-hire",
+			IsUnlocked:    true,
+			UnlockHint:    "",
+			Filter:        UnlocksFilter.Hires );
+
+		/*
+		foreach ( var s in SpecialHires.All )
+		{
+			if ( s.Kind == EmployeeKind.Regular ) continue;
+			var unlocked = SpecialHires.IsUnlocked( s.Kind );
+			yield return new( s.Name, s.Description,
+				"Special Hire", "cat-hire",
+				unlocked, BuildAchievementHint( unlocked, s.RequiredAchievement ),
+				UnlocksFilter.Hires );
+		}
+		*/
+
+		// Game speed
+		foreach ( var sp in GameSpeed.All )
+		{
+			if ( sp.Tier == GameSpeedTier.Normal ) continue;
+			var unlocked = GameSpeed.IsUnlocked( sp.Tier );
+			yield return new( sp.Name,
+				$"{sp.Multiplier:0.#}× — {sp.Description}",
+				"Game Speed", "cat-speed",
+				unlocked, BuildAchievementHint( unlocked, sp.RequiredAchievement ),
+				UnlocksFilter.Speed );
+		}
+
+		// Job postings (only the achievement-gated ones)
+		foreach ( var jp in JobPosting.All )
+		{
+			if ( jp.RequiredAchievement is null ) continue;
+			var unlocked = JobPosting.IsUnlocked( jp.Tier );
+			yield return new( jp.Name, jp.Description,
+				"Job Posting", "cat-posting",
+				unlocked, BuildAchievementHint( unlocked, jp.RequiredAchievement ),
+				UnlocksFilter.Postings );
+		}
+
+		// Hire traits — discovered by hiring someone with them
+		foreach ( var a in System.Enum.GetValues<EmployeeAbility>() )
+		{
+			var ability = a;
+			var seen    = Achievements.AbilitiesDiscovered.Contains( ability );
+			yield return new( ability.DisplayName(), ability.Description(),
+				"Hire Trait", "cat-ability",
+				seen, seen ? "" : "Hire someone with this trait to discover it.",
+				UnlocksFilter.Abilities );
+		}
+	}
+
+	private static string BuildAchievementHint( bool unlocked, AchievementId? id )
+	{
+		if ( unlocked || id is null ) return "";
+		var ach = Achievements.Get( id.Value );
+		return ach is null
+			? "Unlocks via an achievement."
+			: $"Unlocks: {ach.Name} — {ach.Description}";
+	}
+
+	// ── Past games helpers ─────────────────────────────────────────────────
+
+	private static string ScoreClass( int score ) =>
+		score >= 90  ? "score-masterpiece"
+		: score >= 75 ? "score-great"
+		: score >= 60 ? "score-good"
+		: score >= 40 ? "score-mixed"
+		              : "score-poor";
+
+	// ── Trophies helpers ───────────────────────────────────────────────────
+
+	/// Distinct years that have any trophies, newest first.
+	private IReadOnlyList<int> TrophyYears
+	{
+		get
+		{
+			var years = new HashSet<int>();
+			foreach ( var t in Trophies ) years.Add( t.Year );
+			return years.OrderByDescending( y => y ).ToList();
+		}
+	}
+
+	private IEnumerable<Trophy> TrophiesForYear( int year )
+	{
+		foreach ( var t in Trophies )
+			if ( t.Year == year ) yield return t;
+	}
+
+	// ── Re-render trigger ──────────────────────────────────────────────────
+
+	/// Sum of every shipped game's running revenue. Cheap proxy that flips
+	/// whenever a monthly sales slice is paid out, which is when the Past
+	/// Games tab needs to redraw its EARNED / SCORE / PLAYERS columns.
+	private long TotalRevenueAcrossGames
+	{
+		get
+		{
+			long sum = 0;
+			foreach ( var g in ShippedGames )
+				sum += g.RevenueEarned;
+			return sum;
+		}
+	}
+
+	// ── Player reviews (Past Games tile expansion) ──────────────────────────
+
+	private bool IsExpanded( ShippedGame g ) =>
+		ReferenceEquals( Gallery.Instance?.ExpandedReviewGame, g );
+
+	private void ToggleReviews( ShippedGame g ) =>
+		Gallery.Instance?.ToggleReviews( g );
+
+	/// Cached per-game review list — generation is deterministic so the
+	/// instance only matters for layout stability between renders. We keep
+	/// the cache keyed by ShippedGame ref so two ships with identical
+	/// titles still get distinct lists.
+	private static readonly System.Collections.Generic.Dictionary<ShippedGame, System.Collections.Generic.IReadOnlyList<PlayerReview>> _reviewCache
+		= new();
+
+	private System.Collections.Generic.IReadOnlyList<PlayerReview> ReviewsFor( ShippedGame g )
+	{
+		if ( g is null ) return System.Array.Empty<PlayerReview>();
+		if ( !_reviewCache.TryGetValue( g, out var list ) )
+		{
+			list = PlayerReviewGenerator.GenerateForGame( g );
+			_reviewCache[g] = list;
+		}
+		return list;
+	}
+
+	private static string SentimentLabel( ReviewSentiment s ) => s switch
+	{
+		ReviewSentiment.Positive => "RECOMMENDED",
+		ReviewSentiment.Negative => "NOT RECOMMENDED",
+		_                        => "MIXED",
+	};
+
+	protected override int BuildHash()
+	{
+		var hc = new System.HashCode();
+		hc.Add( IsOpen );
+		hc.Add( (int)ActiveSection );
+		hc.Add( (int)ActiveFilter );
+		hc.Add( Achievements.Unlocked.Count );
+		hc.Add( Achievements.AbilitiesDiscovered.Count );
+		hc.Add( ShippedGames.Count );
+		hc.Add( Trophies.Count );
+		hc.Add( TotalRevenueAcrossGames );
+		hc.Add( Gallery.Instance?.ExpandedReviewGame?.Title ?? "" );
+		return hc.ToHashCode();
+	}
+}

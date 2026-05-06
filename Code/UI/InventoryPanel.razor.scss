@@ -1,0 +1,558 @@
+// Inventory modal — styled to match Shop / Settings / Training so the player
+// reads "full-screen overlay" the same way across every menu surface.
+
+InventoryPanel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	font-family: Poppins;
+	z-index: 100;
+}
+
+InventoryPanel.open   { pointer-events: all; }
+InventoryPanel.closed .backdrop,
+InventoryPanel.closed .window { display: none; }
+
+.backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.55 );
+}
+
+.window {
+	position: absolute;
+	left:   12%;
+	right:  12%;
+	top:     5%;
+	bottom:  5%;
+	background-color: rgba( 18, 24, 30, 0.96 );
+	border: 2px solid rgba( 110, 220, 140, 0.5 );
+	border-radius: 14px;
+	flex-direction: column;
+	box-shadow: 0px 10px 40px 0px rgba( 0, 0, 0, 0.6 );
+}
+
+// ── Header ───────────────────────────────────────────────────────────────
+
+.header {
+	flex-direction: row;
+	align-items: center;
+	padding: 18px 24px;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
+}
+
+.title {
+	flex-grow: 1;
+	color: white;
+	font-size: 26px;
+	font-weight: 700;
+	letter-spacing: 2px;
+}
+
+.wallet {
+	color: rgb( 110, 220, 140 );
+	font-size: 20px;
+	font-weight: 600;
+	margin-right: 18px;
+}
+
+.close-btn {
+	width: 36px;
+	height: 36px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border-radius: 6px;
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+}
+
+.close-btn:hover {
+	background-color: rgba( 220, 80, 80, 0.6 );
+}
+
+// ── Top-level category tabs ─────────────────────────────────────────────
+
+.cat-tabs {
+	flex-direction: row;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.06 );
+}
+
+.cat-tab {
+	flex-direction: column;
+	flex-grow: 1;
+	padding: 14px 18px;
+	cursor: pointer;
+	border-right: 1px solid rgba( 255, 255, 255, 0.04 );
+}
+
+.cat-tab:last-child { border-right: 1px solid transparent; }
+
+.cat-tab:hover {
+	background-color: rgba( 110, 220, 140, 0.06 );
+}
+
+.cat-tab.active {
+	background-color: rgba( 110, 220, 140, 0.12 );
+	border-bottom: 2px solid rgb( 110, 220, 140 );
+}
+
+.cat-tab-name {
+	color: white;
+	font-size: 16px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.cat-tab-meta {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	margin-top: 2px;
+}
+
+// ── Body shell ──────────────────────────────────────────────────────────
+
+.body {
+	flex-direction: column;
+	flex-grow: 1;
+	padding: 22px 28px;
+}
+
+.alloc-hint {
+	color: rgba( 255, 255, 255, 0.65 );
+	font-size: 14px;
+	line-height: 1.5;
+	margin-bottom: 18px;
+	white-space: normal;
+	width: 100%;
+	flex-shrink: 0;
+}
+
+.ph-text {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 14px;
+	line-height: 1.5;
+	padding: 12px;
+	white-space: normal;
+	width: 100%;
+	flex-shrink: 0;
+}
+
+// ── Furniture grid (one tab) ────────────────────────────────────────────
+
+.furn-grid {
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 16px;
+}
+
+// Card layout: ported from ShopPanel's .item which works reliably. Fixed
+// size, column flex, name → desc (flex-grow:1) → footer (margin-top). The
+// flex-grow on desc claims the remaining space so the footer always sits
+// at the bottom, no overlap regardless of how long the description wraps.
+.furn-card {
+	width: 290px;
+	height: 175px;
+	flex-shrink: 0;
+	flex-direction: column;
+	padding: 14px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 10px;
+}
+
+.furn-head {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+}
+
+.furn-name {
+	color: white;
+	font-size: 18px;
+	font-weight: 600;
+	flex-grow: 1;
+}
+
+.furn-cat-pill {
+	color: rgba( 255, 255, 255, 0.7 );
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border: 1px solid rgba( 255, 255, 255, 0.12 );
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	padding: 2px 8px;
+	border-radius: 999px;
+	flex-shrink: 0;
+}
+
+// flex-grow:1 mirrors ShopPanel's .item-desc — the description claims the
+// vertical space between header and footer, so the footer always lands at
+// the bottom of the fixed-height card.
+.furn-desc {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 13px;
+	margin-top: 4px;
+	flex-grow: 1;
+}
+
+.furn-foot {
+	flex-direction: row;
+	align-items: center;
+	margin-top: 10px;
+	gap: 8px;
+}
+
+.furn-counts {
+	color: white;
+	background-color: rgba( 110, 220, 140, 0.18 );
+	border: 1px solid rgba( 110, 220, 140, 0.45 );
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	padding: 4px 12px;
+	border-radius: 999px;
+	flex-grow: 1;
+	text-align: center;
+}
+
+// Sell button — only rendered when at least one unplaced copy is in storage.
+// 50 % refund of the per-unit catalogue price; calls SellOneOf on click.
+.furn-sell {
+	color: white;
+	background-color: rgba( 220, 150, 60, 0.30 );
+	border: 1px solid rgba( 220, 150, 60, 0.7 );
+	padding: 4px 10px;
+	border-radius: 6px;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 1px;
+	cursor: pointer;
+	margin-left: 6px;
+}
+
+.furn-sell:hover {
+	background-color: rgba( 220, 150, 60, 0.55 );
+}
+
+// Assign — only on desk-bound items (chair / computer / monitor) when at
+// least one copy is in storage. Opens DeskAssignPanel.
+.furn-assign {
+	color: white;
+	background-color: rgba( 110, 180, 255, 0.30 );
+	border: 1px solid rgba( 110, 180, 255, 0.7 );
+	padding: 4px 10px;
+	border-radius: 6px;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 1px;
+	cursor: pointer;
+	margin-left: 6px;
+}
+
+.furn-assign:hover {
+	background-color: rgba( 110, 180, 255, 0.55 );
+}
+
+// ── Empty state shared by both tabs ─────────────────────────────────────
+// Headline-sized text shown when no furniture is owned / no consumables
+// in stash. Same shape as TrainingPanel's empty-large (kept local so
+// each panel can scope its own).
+
+.empty-large {
+	color: rgba( 255, 255, 255, 0.45 );
+	font-size: 32px;
+	font-weight: 700;
+	letter-spacing: 3px;
+	align-items: center;
+	justify-content: center;
+	padding: 60px 20px;
+	width: 100%;
+}
+
+// ── Coming-soon splash (Consumable tab placeholder) ────────────────────
+.coming-soon {
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 80px 20px;
+	width: 100%;
+	gap: 16px;
+}
+
+.coming-soon-title {
+	color: rgba( 255, 255, 255, 0.85 );
+	font-size: 56px;
+	font-weight: 800;
+	letter-spacing: 6px;
+}
+
+.coming-soon-text {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 18px;
+	font-style: italic;
+}
+
+// ── Smoke Break tile ───────────────────────────────────────────────────────
+// Reuses .furn-card chrome for layout consistency, with a "SKIP" pill
+// styled in the same warning-orange tone as the Sell button so the player
+// reads it as a "this is destructive" item at a glance.
+
+.consumable-card {
+	border-color: rgba( 220, 150, 60, 0.35 );
+}
+
+.furn-cat-pill.warning {
+	color: rgb( 240, 180, 100 );
+	background-color: rgba( 220, 150, 60, 0.15 );
+	border-color: rgba( 220, 150, 60, 0.55 );
+	letter-spacing: 1.5px;
+}
+
+.furn-use {
+	color: white;
+	background-color: rgba( 220, 150, 60, 0.30 );
+	border: 1px solid rgba( 220, 150, 60, 0.7 );
+	padding: 4px 14px;
+	border-radius: 6px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	cursor: pointer;
+	margin-left: 6px;
+}
+
+.furn-use:hover {
+	background-color: rgba( 220, 150, 60, 0.55 );
+}
+
+// Inline coming-soon block under the Smoke Break tile — much smaller than
+// the full-tab splash since it's just a footer note, not a takeover.
+.coming-soon-inline {
+	flex-direction: column;
+	margin-top: 18px;
+	padding: 12px 14px;
+	background-color: rgba( 255, 255, 255, 0.03 );
+	border: 1px solid rgba( 255, 255, 255, 0.10 );
+	border-radius: 8px;
+	gap: 4px;
+}
+
+.coming-soon-title-sm {
+	color: rgba( 255, 255, 255, 0.65 );
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 2px;
+}
+
+// ── Smoke Break warning confirmation overlay ───────────────────────────────
+// Sits inside the InventoryPanel root above the inventory body, so it
+// captures clicks while the inventory itself stays modal-style. Backdrop
+// click = cancel, same as the Cancel button.
+
+.confirm-backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.65 );
+	z-index: 200;
+}
+
+.confirm-card {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 520px;
+	transform: translate( -50%, -50% );
+	flex-direction: column;
+	align-items: center;
+	padding: 28px 32px 22px 32px;
+	background-color: rgba( 22, 28, 34, 0.99 );
+	border: 2px solid rgba( 220, 150, 60, 0.65 );
+	border-radius: 14px;
+	box-shadow: 0px 10px 40px 0px rgba( 0, 0, 0, 0.7 );
+	z-index: 210;
+	gap: 12px;
+}
+
+.confirm-icon {
+	color: rgb( 240, 180, 100 );
+	font-size: 48px;
+	font-weight: 800;
+	text-shadow: 0px 0px 14px rgba( 220, 150, 60, 0.55 );
+}
+
+.confirm-title {
+	color: white;
+	font-size: 22px;
+	font-weight: 800;
+	letter-spacing: 1px;
+}
+
+// Stacked-line body, mirroring TutorialPanel's lead + line pattern. Each
+// row uses white-space: nowrap to dodge the s&box yoga wrap-collapse bug
+// (multi-line text in a flex container clips against siblings); kept short
+// enough to fit the modal width.
+.confirm-body {
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+}
+
+.confirm-lead {
+	color: rgba( 255, 255, 255, 0.92 );
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+	text-align: center;
+	white-space: nowrap;
+	margin-bottom: 4px;
+}
+
+.confirm-line {
+	color: rgba( 255, 255, 255, 0.72 );
+	font-size: 13px;
+	font-weight: 500;
+	text-align: center;
+	white-space: nowrap;
+}
+
+.confirm-actions {
+	flex-direction: row;
+	gap: 12px;
+	margin-top: 6px;
+	width: 100%;
+}
+
+.btn.confirm-cancel {
+	flex-grow: 1;
+	flex-direction: row;
+	justify-content: center;
+	align-items: center;
+	padding: 10px 0;
+	border-radius: 8px;
+	color: white;
+	background-color: rgba( 255, 255, 255, 0.08 );
+	border: 1px solid rgba( 255, 255, 255, 0.20 );
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 2px;
+	cursor: pointer;
+}
+
+.btn.confirm-cancel:hover {
+	background-color: rgba( 255, 255, 255, 0.16 );
+}
+
+.btn.confirm-okay {
+	flex-grow: 1;
+	flex-direction: row;
+	justify-content: center;
+	align-items: center;
+	padding: 10px 0;
+	border-radius: 8px;
+	color: white;
+	background-color: rgba( 220, 150, 60, 0.40 );
+	border: 1px solid rgba( 220, 150, 60, 0.85 );
+	font-size: 13px;
+	font-weight: 800;
+	letter-spacing: 2px;
+	cursor: pointer;
+}
+
+.btn.confirm-okay:hover {
+	background-color: rgba( 220, 150, 60, 0.65 );
+}
+
+// ── Give list (Consumable tab) ──────────────────────────────────────────
+// One row per hire, with give-buttons for every consumable kind currently
+// in the stash. Empty consumables aren't rendered — the player only sees
+// what they actually have.
+
+.give-list {
+	flex-direction: column;
+	gap: 8px;
+}
+
+.give-row {
+	flex-direction: row;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 12px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.07 );
+	border-radius: 8px;
+}
+
+.give-name {
+	flex-direction: column;
+	width: 180px;
+	flex-shrink: 0;
+}
+
+.give-name-text {
+	color: white;
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.give-name-sub {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 11px;
+	margin-top: 2px;
+}
+
+.give-buttons {
+	flex-direction: row;
+	gap: 6px;
+	flex-grow: 1;
+	justify-content: flex-end;
+}
+
+.give-btn {
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	width: 84px;
+	padding: 6px 8px;
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.give-btn:hover {
+	background-color: rgba( 110, 220, 140, 0.18 );
+	border-color: rgba( 110, 220, 140, 0.5 );
+}
+
+.give-btn.disabled {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	cursor: not-allowed;
+}
+
+.give-btn.disabled:hover {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	border-color: rgba( 255, 255, 255, 0.1 );
+}
+
+.give-btn-name {
+	color: white;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.give-btn-stash {
+	color: rgb( 235, 200, 110 );
+	font-size: 11px;
+	font-weight: 700;
+	margin-top: 2px;
+}
+
+.give-btn.disabled .give-btn-stash {
+	color: rgba( 255, 255, 255, 0.3 );
+}

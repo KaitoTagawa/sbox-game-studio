@@ -1,0 +1,200 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop" onclick=@Close></div>
+	<div class="window">
+		<div class="header">
+			<div class="title">SETTINGS</div>
+			<div class="close-btn" onclick=@Close>×</div>
+		</div>
+
+		<div class="body">
+
+			@* ── AUDIO ───────────────────────────────────────────────────────── *@
+			<div class="section">
+				<div class="section-label">AUDIO</div>
+
+				<div class="setting-row">
+					<div class="setting-label">Master Volume</div>
+					<div class="vol-bar">
+						@for ( int i = 0; i < 10; i++ )
+						{
+							var step = i;
+							var pct  = (step + 1) * 10;
+							var on   = MasterVolume * 100 >= pct - 0.001f;
+							<div class="vol-cell @(on ? "filled" : "")"
+							     onclick=@(() => SetMasterVolume( pct / 100f ))></div>
+						}
+					</div>
+					<div class="setting-value">@VolumePct(MasterVolume)%</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="setting-label">Music Volume</div>
+					<div class="vol-bar">
+						@for ( int i = 0; i < 10; i++ )
+						{
+							var step = i;
+							var pct  = (step + 1) * 10;
+							var on   = MusicVolume * 100 >= pct - 0.001f;
+							<div class="vol-cell @(on ? "filled" : "")"
+							     onclick=@(() => SetMusicVolume( pct / 100f ))></div>
+						}
+					</div>
+					<div class="setting-value">@VolumePct(MusicVolume)%</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="setting-label">Sound Effects</div>
+					<div class="vol-bar">
+						@for ( int i = 0; i < 10; i++ )
+						{
+							var step = i;
+							var pct  = (step + 1) * 10;
+							var on   = SfxVolume * 100 >= pct - 0.001f;
+							<div class="vol-cell @(on ? "filled" : "")"
+							     onclick=@(() => SetSfxVolume( pct / 100f ))></div>
+						}
+					</div>
+					<div class="setting-value">@VolumePct(SfxVolume)%</div>
+				</div>
+			</div>
+
+			@* ── CONTROLS ───────────────────────────────────────────────────── *@
+			<div class="section">
+				<div class="section-label">CONTROLS</div>
+
+				<div class="setting-row">
+					<div class="setting-label">Mouse Sensitivity</div>
+					<div class="vol-bar">
+						@for ( int i = 0; i < SensCellCount; i++ )
+						{
+							var step = i;
+							var v    = Settings.MinSensitivity + step * Settings.SensitivityStep;
+							var on   = Sensitivity >= v - 0.001f;
+							<div class="vol-cell @(on ? "filled" : "")"
+							     onclick=@(() => SetSens( v ))></div>
+						}
+					</div>
+					<div class="setting-value">@($"{Sensitivity:0.00} · {SensitivityHint}")</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="setting-label">Invert Y Axis</div>
+					<div class="toggle @(InvertY ? "on" : "off")" onclick=@ToggleInvert>
+						<div class="toggle-knob"></div>
+					</div>
+					<div class="setting-value">@(InvertY ? "Inverted" : "Normal")</div>
+				</div>
+			</div>
+
+			@* ── DISPLAY ────────────────────────────────────────────────────── *@
+			<div class="section">
+				<div class="section-label">DISPLAY</div>
+
+				<div class="setting-row">
+					<div class="setting-label">Field of View</div>
+					<div class="stepper">
+						<div class="step-btn" onclick=@DecFov>−</div>
+						<div class="step-value">@Fov</div>
+						<div class="step-btn" onclick=@IncFov>+</div>
+					</div>
+					<div class="setting-value">@FovHint</div>
+				</div>
+			</div>
+
+			@* ── GAME SPEED ─────────────────────────────────────────────────── *@
+			<div class="section">
+				<div class="section-label">GAME SPEED</div>
+
+				@foreach ( var info in GameSpeed.All )
+				{
+					var s          = info;
+					var isCurrent  = ActiveSpeed == s.Tier;
+					var isUnlocked = GameSpeed.IsUnlocked( s.Tier );
+					var lockAch    = !isUnlocked && s.RequiredAchievement is { } id
+						? Achievements.Get( id ) : null;
+					<div class="speed-row @(isCurrent ? "current" : "") @(isUnlocked ? "" : "locked")"
+					     onclick=@(() => SetSpeed( s.Tier ))>
+						<div class="speed-mult">@($"{s.Multiplier:0.#}×")</div>
+						<div class="speed-info">
+							<div class="speed-name">@s.Name</div>
+							<div class="speed-desc">@s.Description</div>
+							@if ( lockAch != null )
+							{
+								<div class="speed-lock">🔒 @lockAch.Name — @lockAch.Description</div>
+							}
+						</div>
+						<div class="speed-status">
+							@( isCurrent ? "Active" : !isUnlocked ? "Locked" : "Switch" )
+						</div>
+					</div>
+				}
+			</div>
+
+		</div>
+	</div>
+</root>
+
+@code {
+	// ── State ────────────────────────────────────────────────────────────────
+
+	private bool  IsOpen           => Settings.Instance?.IsOpen ?? false;
+
+	private float MasterVolume     => Settings.Instance?.MasterVolume ?? 1f;
+	private float MusicVolume      => Settings.Instance?.MusicVolume  ?? 0.7f;
+	private float SfxVolume        => Settings.Instance?.SfxVolume    ?? 0.85f;
+	private float Sensitivity      => Settings.Instance?.MouseSensitivity ?? 1f;
+	private bool  InvertY          => Settings.Instance?.InvertY ?? false;
+	private int   Fov              => Settings.Instance?.FieldOfView ?? 90;
+
+	private GameSpeedTier ActiveSpeed => GameManager.Instance?.ActiveSpeed ?? GameSpeedTier.Normal;
+
+	private int VolumePct( float v ) => System.Math.Clamp( (int)System.Math.Round( v * 100 ), 0, 100 );
+
+	// Slider cell count for sensitivity: one cell per step over the full range.
+	// (3.00 − 0.25) / 0.25 + 1 = 12 cells.
+	private static readonly int SensCellCount =
+		(int)System.Math.Round( (Settings.MaxSensitivity - Settings.MinSensitivity) / Settings.SensitivityStep ) + 1;
+
+	private string SensitivityHint => Sensitivity switch
+	{
+		<= 0.5f => "Slow",
+		<= 1.0f => "Normal",
+		<= 2.0f => "Fast",
+		_       => "Hyper",
+	};
+
+	private string FovHint => Fov switch
+	{
+		<= 70  => "Narrow",
+		<= 90  => "Default",
+		<= 100 => "Wide",
+		_      => "Ultra-wide",
+	};
+
+	// ── Click handlers ───────────────────────────────────────────────────────
+
+	private void Close()                       => Settings.Instance?.SetOpen( false );
+
+	private void SetMasterVolume( float v )    => Settings.Instance?.SetMasterVolume( v );
+	private void SetMusicVolume ( float v )    => Settings.Instance?.SetMusicVolume( v );
+	private void SetSfxVolume   ( float v )    => Settings.Instance?.SetSfxVolume( v );
+
+	private void SetSens( float v )            => Settings.Instance?.SetSensitivity( v );
+	private void ToggleInvert()                => Settings.Instance?.ToggleInvertY();
+
+	private void IncFov()                      => Settings.Instance?.IncFov();
+	private void DecFov()                      => Settings.Instance?.DecFov();
+
+	private void SetSpeed( GameSpeedTier t )   => GameManager.Instance?.TrySetSpeed( t );
+
+	// ── Re-render ────────────────────────────────────────────────────────────
+
+	protected override int BuildHash() =>
+		System.HashCode.Combine(
+			IsOpen, MasterVolume, MusicVolume, SfxVolume,
+			Sensitivity, InvertY, Fov, (int)ActiveSpeed );
+}

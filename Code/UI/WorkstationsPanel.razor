@@ -1,0 +1,196 @@
+@using Sandbox;
+@using Sandbox.UI;
+@using System.Linq;
+@inherits PanelComponent
+
+@* Workstations hub. One row per placed Desk; each desk shows three
+   inline pickers (Chair, Computer, Monitor) with the current item
+   bound at that mount. Click a picker → expands an item list pulled
+   from inventory storage; click an item → assigns to that desk's
+   matching mount, displacing whatever was there back to storage. *@
+
+<root class="@(IsOpen ? "open" : "closed")">
+	@if ( IsOpen )
+	{
+		<div class="backdrop" onclick=@Close></div>
+		<div class="window">
+			<div class="header">
+				<div class="title">EDIT DESKS</div>
+				<div class="subtitle">Pick chair, computer, and monitor for every desk.</div>
+				<div class="close-btn" onclick=@Close>×</div>
+			</div>
+
+			<div class="body">
+				@if ( DeskRows.Count == 0 )
+				{
+					<div class="empty-large">No desks placed yet. Buy a Desk in the Shop first.</div>
+				}
+				else
+				{
+					<div class="desk-cards">
+						@foreach ( var row in DeskRows )
+						{
+							var r = row;
+							<div class="desk-card">
+								<div class="desk-head">
+									<div class="desk-name">@r.Label</div>
+									<div class="desk-meta">@r.Meta</div>
+								</div>
+
+								<div class="mount-rows">
+									@foreach ( var mount in MountKinds )
+									{
+										var mk      = mount;
+										var current = CurrentItemAt( r.SlotId, mk );
+										var isPick  = IsPickingFor( r.SlotId, mk );
+										<div class="mount-row @(isPick ? "picking" : "")">
+											<div class="mount-label">@mk.DisplayName()</div>
+											<div class="mount-current">@(current?.Name ?? "—")</div>
+											<div class="mount-btn"
+												 onclick=@(() => TogglePick( r.SlotId, mk ))>
+												@(isPick ? "Cancel" : "Change")
+											</div>
+										</div>
+
+										@if ( isPick )
+										{
+											var options = StorageItemsOf( mk );
+											<div class="picker">
+												@if ( options.Count == 0 )
+												{
+													<div class="picker-empty">No @mk.DisplayName().ToLower() in storage. Buy one in the Shop.</div>
+												}
+												else
+												{
+													@foreach ( var opt in options )
+													{
+														var o     = opt;
+														var entry = InventoryCatalogue.Get( o.Kind );
+														if ( entry is null ) { continue; }
+														<div class="picker-row" onclick=@(() => ConfirmPick( o ))>
+															<div class="picker-name">@entry.Name</div>
+															<div class="picker-cat">@entry.Slot.DisplayName()</div>
+														</div>
+													}
+												}
+											</div>
+										}
+									}
+								</div>
+							</div>
+						}
+					</div>
+				}
+			</div>
+		</div>
+	}
+</root>
+
+@code {
+	private bool IsOpen => Workstations.Instance?.IsOpen ?? false;
+	private void Close() => Workstations.Instance?.SetOpen( false );
+
+	private static readonly SlotKind[] MountKinds =
+	{
+		SlotKind.Chair,
+		SlotKind.Computer,
+		SlotKind.Monitor,
+	};
+
+	private record DeskRow( System.Guid SlotId, string Label, string Meta );
+
+	private List<DeskRow> DeskRows
+	{
+		get
+		{
+			var list = new List<DeskRow>();
+			var inv  = InventoryManager.Instance;
+			var hr   = HRManager.Instance;
+			if ( inv is null ) return list;
+
+			foreach ( var slot in inv.Slots )
+			{
+				if ( slot.Kind != SlotKind.Desk ) continue;
+				if ( !inv.IsSlotOccupied( slot.Id ) ) continue;  // skip empty desk slots
+
+				EmployeeNPC occupant = null;
+				if ( hr is not null )
+				{
+					foreach ( var npc in hr.Staff )
+						if ( npc.DeskSlotId == slot.Id ) { occupant = npc; break; }
+				}
+
+				string label = inv.LabelForDeskSlot( slot.Id );
+				string meta  = occupant is null
+					? "Empty desk"
+					: $"{occupant.EmployeeName} · {occupant.Role}";
+				list.Add( new DeskRow( slot.Id, label, meta ) );
+			}
+			return list
+				.OrderBy( r => r.Meta == "Empty desk" ? 1 : 0 )
+				.ThenBy( r => r.Label )
+				.ToList();
+		}
+	}
+
+	private InventoryCatalogue.Entry CurrentItemAt( System.Guid deskSlotId, SlotKind mountKind )
+	{
+		var item = InventoryManager.Instance?.ItemAtDeskMount( deskSlotId, mountKind );
+		return item is null ? null : InventoryCatalogue.Get( item.Kind );
+	}
+
+	/// Items in storage that are eligible for <paramref name="mountKind"/>.
+	/// Pulled from the live inventory so newly purchased items appear
+	/// without a refresh, and just-displaced items show up as candidates
+	/// for the next swap.
+	private List<InventoryItem> StorageItemsOf( SlotKind mountKind )
+	{
+		var list = new List<InventoryItem>();
+		var inv  = InventoryManager.Instance;
+		if ( inv is null ) return list;
+		foreach ( var item in inv.Owned )
+		{
+			if ( item.IsPlaced ) continue;
+			var entry = InventoryCatalogue.Get( item.Kind );
+			if ( entry is null )            continue;
+			if ( entry.Slot != mountKind )  continue;
+			list.Add( item );
+		}
+		return list;
+	}
+
+	private bool IsPickingFor( System.Guid deskSlotId, SlotKind mountKind )
+	{
+		var ws = Workstations.Instance;
+		return ws is not null
+			&& ws.PickingDeskSlotId == deskSlotId
+			&& ws.PickingMountKind  == mountKind;
+	}
+
+	private void TogglePick( System.Guid deskSlotId, SlotKind mountKind )
+	{
+		var ws = Workstations.Instance;
+		if ( ws is null ) return;
+		if ( IsPickingFor( deskSlotId, mountKind ) ) ws.CancelPick();
+		else ws.BeginPick( deskSlotId, mountKind );
+	}
+
+	private void ConfirmPick( InventoryItem item )
+	{
+		Workstations.Instance?.ConfirmPick( item );
+	}
+
+	protected override int BuildHash()
+	{
+		var ws  = Workstations.Instance;
+		var inv = InventoryManager.Instance;
+		var hr  = HRManager.Instance;
+		return System.HashCode.Combine(
+			IsOpen,
+			ws?.PickingDeskSlotId ?? System.Guid.Empty,
+			(int)(ws?.PickingMountKind ?? SlotKind.None),
+			inv?.Owned.Count ?? 0,
+			hr?.Staff.Count  ?? 0,
+			DeskRows.Count );
+	}
+}

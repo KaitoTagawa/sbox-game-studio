@@ -1,0 +1,328 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop" onclick=@Close></div>
+	<div class="window">
+		<div class="header">
+			<div class="title">INVENTORY</div>
+			<div class="wallet">$@MoneyText</div>
+			<div class="close-btn" onclick=@Close>×</div>
+		</div>
+
+		<div class="cat-tabs">
+			<div class="cat-tab @(ActiveCategory == ItemCategory.Workstation ? "active" : "")"
+			     onclick=@(() => SetCategory( ItemCategory.Workstation ))>
+				<div class="cat-tab-name">Furniture</div>
+				<div class="cat-tab-meta">@OwnedFurnitureKinds.Count in storage</div>
+			</div>
+			<div class="cat-tab @(ActiveCategory == ItemCategory.Consumable ? "active" : "")"
+			     onclick=@(() => SetCategory( ItemCategory.Consumable ))>
+				<div class="cat-tab-name">Consumable</div>
+				<div class="cat-tab-meta">coming soon</div>
+			</div>
+		</div>
+
+		<div class="body">
+			@if ( ActiveCategory == ItemCategory.Consumable )
+			{
+				@* Smoke Break stash row + a coming-soon block for the
+				   morale-bump consumables (still being reworked). *@
+				@{
+					int smokeStash = OwnedCount( ItemKind.SmokeBreak );
+				}
+
+				@if ( smokeStash > 0 )
+				{
+					var entry = InventoryCatalogue.Get( ItemKind.SmokeBreak );
+					<div class="furn-grid">
+						<div class="furn-card consumable-card">
+							<div class="furn-head">
+								<div class="furn-name">@entry.Name</div>
+								<div class="furn-cat-pill warning">SKIP</div>
+							</div>
+							<div class="furn-desc">@entry.Description</div>
+							<div class="furn-foot">
+								<div class="furn-counts">@smokeStash in stash</div>
+								<div class="furn-use" onclick=@OpenSmokeBreakConfirm>
+									Use
+								</div>
+							</div>
+						</div>
+					</div>
+				}
+				else
+				{
+					<div class="empty-large">No Smoke Breaks in stash. Buy from the Shop.</div>
+				}
+
+				<div class="coming-soon-inline">
+					<div class="coming-soon-title-sm">Other consumables</div>
+					<div class="coming-soon-text">Morale-bump consumables are being reworked.</div>
+				</div>
+			}
+			else
+			{
+				@* ── FURNITURE — only items currently in storage ───────────── *@
+				@if ( OwnedFurnitureKinds.Count == 0 )
+				{
+					<div class="empty-large">Nothing in storage</div>
+				}
+				else
+				{
+					<div class="furn-grid">
+						@foreach ( var kind in OwnedFurnitureKinds )
+						{
+							var k         = kind;
+							var entry     = InventoryCatalogue.Get( k );
+							if ( entry is null ) { continue; }
+							var inStorage = OwnedCount( k ) - PlacedCount( k );
+							var perUnit   = entry.Price / System.Math.Max( 1, entry.BulkSize );
+							var refund    = System.Math.Max( 1L, perUnit / 2 );
+							<div class="furn-card">
+								<div class="furn-head">
+									<div class="furn-name">@entry.Name</div>
+									<div class="furn-cat-pill">@entry.Category.DisplayName()</div>
+								</div>
+								<div class="furn-desc">@entry.Description</div>
+								<div class="furn-foot">
+									<div class="furn-counts">@inStorage in storage</div>
+									<div class="furn-sell" onclick=@(() => Sell( k ))
+									     title="Sell one unplaced @entry.Name for $@refund.ToString("N0").">
+										Sell
+									</div>
+								</div>
+							</div>
+						}
+					</div>
+				}
+			}
+		</div>
+	</div>
+
+	@* Smoke Break confirmation overlay — pops above the inventory body
+	   whenever the player clicks Use on a Smoke Break, every time. No
+	   "don't ask again" toggle by design. *@
+	@if ( _confirmSmokeBreak )
+	{
+		<div class="confirm-backdrop" onclick=@CancelSmokeBreak></div>
+		<div class="confirm-card">
+			<div class="confirm-icon">⚠</div>
+			<div class="confirm-title">Take a Smoke Break?</div>
+			<div class="confirm-body">
+				<div class="confirm-lead">Skip the rest of development?</div>
+				<div class="confirm-line">Finishes the current game at 70% potential.</div>
+				<div class="confirm-line">Skips 7 in-game days.</div>
+				<div class="confirm-line">Salaries, research, and reviews all advance.</div>
+				<div class="confirm-line">There's no undo.</div>
+			</div>
+			<div class="confirm-actions">
+				<div class="btn confirm-cancel" onclick=@CancelSmokeBreak>Cancel</div>
+				<div class="btn confirm-okay"   onclick=@ConfirmSmokeBreak>Okay</div>
+			</div>
+		</div>
+	}
+</root>
+
+@code {
+	// ── Modal state ──────────────────────────────────────────────────────────
+
+	private bool IsOpen   => InventoryManager.Instance?.IsOpen ?? false;
+	private void Close()  => InventoryManager.Instance?.SetOpen( false );
+
+	// Two-tab top-level. The "Furniture" tab shows every non-Consumable
+	// catalogue entry regardless of sub-category (Workstation / Equipment /
+	// Amenities / Decoration); the "Consumable" tab is its own thing.
+	// ActiveCategory uses Workstation as the default sentinel — the markup
+	// just branches on ==Consumable vs everything else.
+	private ItemCategory _activeCategory = ItemCategory.Workstation;
+	private ItemCategory ActiveCategory => _activeCategory;
+	private void SetCategory( ItemCategory c ) { _activeCategory = c; }
+
+	// ── Data sources ─────────────────────────────────────────────────────────
+
+	private long   Money     => GameManager.Instance?.Money  ?? 0;
+	private string MoneyText => Money.ToString( "N0" );
+
+	private IEnumerable<InventoryCatalogue.Entry> AllEntries => InventoryCatalogue.All;
+
+	/// Furniture kinds with at least one copy currently in storage (owned
+	/// but unplaced). Placed items don't show — the inventory is now an
+	/// "unplaced storage" view, not a roster of everything owned. The
+	/// starter Desk auto-places on awake so it never appears here.
+	private IReadOnlyList<ItemKind> OwnedFurnitureKinds
+	{
+		get
+		{
+			var list = new List<ItemKind>();
+			foreach ( var e in AllEntries )
+			{
+				if ( !e.Category.IsFurniture() )                          continue;
+				// Fills-all decorations (Plants) are studio-wide visuals,
+				// not per-instance stash items — hide from the inventory
+				// panel so the player isn't told they have "1 in storage"
+				// when really the plants are scattered around the office.
+				if ( e.FillsAllMatchingSlots )                            continue;
+				// Desk-bound items (Chair / Computer / Monitor) only show
+				// while they're sitting in storage waiting for a desk
+				// assignment — once placed, the Edit Desks panel manages
+				// them. The inStorage check below filters out placed copies
+				// automatically, so the sell button only appears for the
+				// truly-unassigned ones (no misleading Sell on a chair
+				// that's bolted to a desk).
+				int inStorage = OwnedCount( e.Kind ) - PlacedCount( e.Kind );
+				if ( inStorage <= 0 )                                     continue;
+				list.Add( e.Kind );
+			}
+			return list;
+		}
+	}
+
+	/// Consumable kinds with at least one in the stash. Drives both the
+	/// per-staff give-button row and the Consumable-tab empty state.
+	private IReadOnlyList<ItemKind> OwnedConsumableKinds
+	{
+		get
+		{
+			var list = new List<ItemKind>();
+			foreach ( var e in AllEntries )
+			{
+				if ( e.Category != ItemCategory.Consumable )    continue;
+				if ( OwnedCount( e.Kind ) <= 0 )                continue;
+				list.Add( e.Kind );
+			}
+			return list;
+		}
+	}
+
+	private IReadOnlyList<EmployeeNPC> Hires =>
+		HRManager.Instance?.Staff ?? System.Array.Empty<EmployeeNPC>();
+
+	private int ConsumableStashCount
+	{
+		get
+		{
+			int n = 0;
+			foreach ( var k in OwnedConsumableKinds )
+				n += OwnedCount( k );
+			return n;
+		}
+	}
+
+	private int OwnedCount( ItemKind k ) =>
+		InventoryManager.Instance?.OwnedCount( k ) ?? 0;
+
+	private int PlacedCount( ItemKind k ) =>
+		InventoryManager.Instance?.PlacedCountOf( k ) ?? 0;
+
+	// ── Click handlers ───────────────────────────────────────────────────────
+	// Buying is intentionally absent — Inventory only lists what's owned.
+	// Restocking happens in the Shop modal.
+
+	private void Give( EmployeeNPC target, ItemKind kind )
+	{
+		if ( target is null ) return;
+		InventoryManager.Instance?.TryGiveConsumable( target, kind );
+	}
+
+	/// Auto-target the lowest-morale hire and hand them one consumable. Cleaner
+	/// click flow than a per-employee picker for a small +10% morale bump —
+	/// the player always wants whoever's hurting most. Notification names
+	/// the recipient so it's not silent.
+	private void GiveToBest( ItemKind kind )
+	{
+		var hr = HRManager.Instance;
+		if ( hr is null || hr.Staff.Count == 0 ) return;
+
+		EmployeeNPC target = null;
+		float       lowest = float.MaxValue;
+		foreach ( var npc in hr.Staff )
+		{
+			if ( npc is null )      continue;
+			if ( npc.Morale >= lowest ) continue;
+			lowest = npc.Morale;
+			target = npc;
+		}
+		if ( target is null ) return;
+
+		InventoryManager.Instance?.TryGiveConsumable( target, kind );
+	}
+
+	/// Sell one unplaced copy of this kind for 50 % of the catalogue price.
+	/// Sell button only renders when the player has at least one unplaced
+	/// copy in storage (see the markup branch above). Desk-bound kinds
+	/// (Chair / Computer / Monitor) are now assigned via the dedicated
+	/// Workstations panel — no per-item Assign button here.
+	private void Sell( ItemKind kind ) =>
+		InventoryManager.Instance?.SellOneOf( kind );
+
+	// ── Smoke Break confirmation flow ────────────────────────────────────────
+	// Click Use → set the flag, confirmation card overlays the inventory.
+	// Cancel / backdrop click → flag clears, no effect. Okay → flag clears
+	// and TryUseSmokeBreak handles validation (no project, empty stash, etc.)
+	// with its own toast. Modal pops EVERY click — no "don't ask again"
+	// toggle, since the user explicitly asked for the warning every time.
+
+	private bool _confirmSmokeBreak;
+
+	private void OpenSmokeBreakConfirm()    => _confirmSmokeBreak = true;
+	private void CancelSmokeBreak()         => _confirmSmokeBreak = false;
+	private void ConfirmSmokeBreak()
+	{
+		_confirmSmokeBreak = false;
+		InventoryManager.Instance?.TryUseSmokeBreak();
+	}
+
+	// ── Display helpers ──────────────────────────────────────────────────────
+
+	private static string ShortName( ItemKind k ) => k switch
+	{
+		ItemKind.ChocolateBar => "🍫 Choc",
+		ItemKind.EnergyDrink  => "⚡ Drink",
+		ItemKind.ProteinBar   => "🥜 Bar",
+		_                     => k.DisplayName(),
+	};
+
+	private static string MoralePct( float m ) =>
+		$"{(int)System.MathF.Round( System.Math.Clamp( m, 0f, 1f ) * 100f )}%";
+
+	// ── Re-render trigger ────────────────────────────────────────────────────
+
+	/// Sum of every owned consumable's count plus owned-vs-placed deltas for
+	/// furniture. Cheap proxy that flips on every TryBuy / TryGiveConsumable
+	/// success without needing per-event observers.
+	private int InventoryStateProxy
+	{
+		get
+		{
+			int sum = 0;
+			foreach ( var e in AllEntries )
+			{
+				sum += OwnedCount( e.Kind );
+				sum += PlacedCount( e.Kind ) * 17;
+			}
+			return sum;
+		}
+	}
+
+	private int StaffMoraleSum
+	{
+		get
+		{
+			int n = 0;
+			foreach ( var npc in Hires ) n += (int)System.MathF.Round( npc.Morale * 100f );
+			return n;
+		}
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		IsOpen,
+		(int)_activeCategory,
+		Money,
+		Hires.Count,
+		StaffMoraleSum,
+		InventoryStateProxy,
+		Achievements.Unlocked.Count,
+		_confirmSmokeBreak );
+}

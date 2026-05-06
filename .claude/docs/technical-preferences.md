@@ -5,44 +5,49 @@
 
 ## Engine & Language
 
-- **Engine**: [TO BE CONFIGURED — run /setup-engine]
-- **Language**: [TO BE CONFIGURED]
-- **Rendering**: [TO BE CONFIGURED]
-- **Physics**: [TO BE CONFIGURED]
+- **Engine**: s&box (Source 2 + .NET, MIT-licensed since Nov 2025)
+- **Language**: C# (.NET 8+)
+- **Rendering**: Source 2 renderer
+- **Physics**: Source 2 / Rubikon physics
 
 ## Input & Platform
 
 <!-- Written by /setup-engine. Read by /ux-design, /ux-review, /test-setup, /team-ui, and /dev-story -->
 <!-- to scope interaction specs, test helpers, and implementation to the correct input methods. -->
 
-- **Target Platforms**: [TO BE CONFIGURED — e.g., PC, Console, Mobile, Web]
-- **Input Methods**: [TO BE CONFIGURED — e.g., Keyboard/Mouse, Gamepad, Touch, Mixed]
-- **Primary Input**: [TO BE CONFIGURED — the dominant input for this game]
-- **Gamepad Support**: [TO BE CONFIGURED — Full / Partial / None]
-- **Touch Support**: [TO BE CONFIGURED — Full / Partial / None]
-- **Platform Notes**: [TO BE CONFIGURED — any platform-specific UX constraints]
+- **Target Platforms**: PC (Steam, standalone via Valve license, Linux supported)
+- **Input Methods**: Keyboard/Mouse, Gamepad
+- **Primary Input**: Keyboard/Mouse (tycoon UI-driven)
+- **Gamepad Support**: Partial (recommended for menu navigation; not required for core loop)
+- **Touch Support**: None
+- **Platform Notes**: s&box is PC-only currently. `game2.sbproj` has
+  `GameNetworkType: "Multiplayer"` set to default boilerplate, but design intent
+  is single-player — consider reverting to single-player config in a future cleanup.
 
 ## Naming Conventions
 
-- **Classes**: [TO BE CONFIGURED]
-- **Variables**: [TO BE CONFIGURED]
-- **Signals/Events**: [TO BE CONFIGURED]
-- **Files**: [TO BE CONFIGURED]
-- **Scenes/Prefabs**: [TO BE CONFIGURED]
-- **Constants**: [TO BE CONFIGURED]
+- **Classes**: PascalCase (e.g., `Employee`, `GameProjectManager`)
+- **Public properties**: PascalCase, `[Property]` attribute for editor exposure
+- **Private fields**: `_camelCase` (e.g., `_currentState`)
+- **Methods**: PascalCase
+- **Files**: PascalCase matching class (e.g., `Employee.cs`)
+- **Scenes/Prefabs**: PascalCase matching root GameObject
+- **Constants**: PascalCase
+- **s&box-specific**: Components inherit from `Component`; networked properties
+  use `[Sync]`; RPCs use `[Broadcast]`/`[Authority]`/`[HostSync]`
 
 ## Performance Budgets
 
-- **Target Framerate**: [TO BE CONFIGURED]
-- **Frame Budget**: [TO BE CONFIGURED]
-- **Draw Calls**: [TO BE CONFIGURED]
-- **Memory Ceiling**: [TO BE CONFIGURED]
+- **Target Framerate**: 60fps
+- **Frame Budget**: 16.6ms
+- **Draw Calls**: <2000 (Source 2 handles batching well)
+- **Memory Ceiling**: 4GB managed heap, 8GB total
 
 ## Testing
 
-- **Framework**: [TO BE CONFIGURED]
-- **Minimum Coverage**: [TO BE CONFIGURED]
-- **Required Tests**: Balance formulas, gameplay systems, networking (if applicable)
+- **Framework**: [TO BE CONFIGURED — s&box has limited test support; investigate via /test-setup]
+- **Minimum Coverage**: 50% for logic systems (tycoon formulas, employee state machines)
+- **Required Tests**: Balance formulas, save/load roundtrip, employee state transitions
 
 ## Forbidden Patterns
 
@@ -65,12 +70,18 @@
 <!-- Read by /code-review, /architecture-decision, /architecture-review, and team skills -->
 <!-- to know which specialist to spawn for engine-specific validation. -->
 
-- **Primary**: [TO BE CONFIGURED — run /setup-engine]
-- **Language/Code Specialist**: [TO BE CONFIGURED]
-- **Shader Specialist**: [TO BE CONFIGURED]
-- **UI Specialist**: [TO BE CONFIGURED]
-- **Additional Specialists**: [TO BE CONFIGURED]
-- **Routing Notes**: [TO BE CONFIGURED]
+- **Primary**: general-purpose (no `sbox-specialist` agent exists)
+- **Language/Code Specialist**: general-purpose with C# expertise
+  (closest reference: `godot-csharp-specialist` for general C# patterns, but
+  be aware those patterns are NOT directly applicable to s&box's component model)
+- **Shader Specialist**: general-purpose (s&box uses Source 2 shaders + ShaderGraph)
+- **UI Specialist**: general-purpose (s&box uses Razor for UI, not standard XAML/UMG/UXML)
+- **Additional Specialists**: None — s&box-specific concerns require manual review
+- **Routing Notes**: When working on s&box code, agents MUST consult
+  https://sbox.game/dev/doc before suggesting APIs. The LLM's training data
+  predates s&box 1.0 (April 2026), so any Component, Scene, or networking
+  pattern not verified against the docs is suspect. Cross-reference
+  `docs/engine-reference/sbox/VERSION.md` for the knowledge gap warning list.
 
 ### File Extension Routing
 
@@ -79,9 +90,9 @@
 
 | File Extension / Type | Specialist to Spawn |
 |-----------------------|---------------------|
-| Game code (primary language) | [TO BE CONFIGURED] |
-| Shader / material files | [TO BE CONFIGURED] |
-| UI / screen files | [TO BE CONFIGURED] |
-| Scene / prefab / level files | [TO BE CONFIGURED] |
-| Native extension / plugin files | [TO BE CONFIGURED] |
-| General architecture review | Primary |
+| Game code (.cs files) | general-purpose (verify against s&box docs) |
+| Shader / material files (.shader, .vmat, ShaderGraph) | general-purpose |
+| UI / screen files (.razor, .scss) | general-purpose |
+| Scene / prefab / level files (.scene, .object, .vmap) | general-purpose |
+| Project config (.sbproj, .csproj) | general-purpose |
+| General architecture review | general-purpose |

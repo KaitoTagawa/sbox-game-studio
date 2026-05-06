@@ -1,0 +1,321 @@
+SettingsPanel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	font-family: Poppins;
+	z-index: 100;
+}
+
+SettingsPanel.open {
+	pointer-events: all;
+}
+
+SettingsPanel.closed .backdrop,
+SettingsPanel.closed .window {
+	display: none;
+}
+
+.backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.55 );
+}
+
+.window {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate( -50%, -50% );
+	width: 760px;
+	height: 660px;
+	background-color: rgba( 18, 24, 30, 0.96 );
+	border: 2px solid rgba( 110, 220, 140, 0.5 );
+	border-radius: 14px;
+	flex-direction: column;
+	box-shadow: 0px 10px 40px 0px rgba( 0, 0, 0, 0.6 );
+}
+
+// ── Header ───────────────────────────────────────────────────────────────────
+
+.header {
+	flex-direction: row;
+	align-items: center;
+	padding: 18px 24px;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
+	flex-shrink: 0;
+}
+
+.title {
+	flex-grow: 1;
+	color: white;
+	font-size: 26px;
+	font-weight: 700;
+	letter-spacing: 2px;
+}
+
+.close-btn {
+	width: 36px;
+	height: 36px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border-radius: 6px;
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+}
+
+.close-btn:hover {
+	background-color: rgba( 220, 80, 80, 0.6 );
+}
+
+// ── Body / sections ──────────────────────────────────────────────────────────
+
+.body {
+	// Canonical scroll-container fix — see GalleryPanel/ShopPanel for the
+	// rationale. flex-basis: 0 + min-height: 0 makes yoga compute height
+	// purely from remaining space.
+	flex-direction: column;
+	flex-grow: 1;
+	flex-shrink: 1;
+	flex-basis: 0;
+	min-height: 0;
+	padding: 16px 22px 22px;
+	gap: 10px;
+	overflow: scroll;
+}
+
+.section {
+	flex-direction: column;
+	gap: 6px;
+	padding: 10px 12px;
+	background-color: rgba( 255, 255, 255, 0.03 );
+	border: 1px solid rgba( 255, 255, 255, 0.06 );
+	border-radius: 10px;
+	flex-shrink: 0;
+}
+
+.section-label {
+	color: rgba( 255, 255, 255, 0.45 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 2px;
+	padding: 0 4px 4px;
+}
+
+// ── Generic row ──────────────────────────────────────────────────────────────
+
+.setting-row {
+	flex-direction: row;
+	align-items: center;
+	gap: 14px;
+	padding: 8px 8px;
+	flex-shrink: 0;
+}
+
+.setting-label {
+	width: 180px;
+	color: white;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.setting-value {
+	width: 120px;
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	text-align: right;
+}
+
+// ── Volume bar (10 cells) ────────────────────────────────────────────────────
+
+.vol-bar {
+	flex-direction: row;
+	gap: 3px;
+	flex-grow: 1;
+}
+
+.vol-cell {
+	flex-grow: 1;
+	height: 18px;
+	background-color: rgba( 255, 255, 255, 0.07 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 3px;
+	cursor: pointer;
+	transition: all 0.08s ease-out;
+}
+
+.vol-cell:hover {
+	background-color: rgba( 110, 220, 140, 0.25 );
+	border-color: rgba( 110, 220, 140, 0.45 );
+}
+
+.vol-cell.filled {
+	background-color: rgb( 110, 220, 140 );
+	border-color: rgb( 110, 220, 140 );
+}
+
+.vol-cell.filled:hover {
+	background-color: rgb( 130, 235, 160 );
+}
+
+// ── Numeric stepper ( – value + ) ────────────────────────────────────────────
+
+.stepper {
+	flex-direction: row;
+	align-items: center;
+	gap: 2px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 6px;
+	overflow: hidden;
+	flex-grow: 1;
+}
+
+.step-btn {
+	width: 36px;
+	height: 32px;
+	color: white;
+	font-size: 18px;
+	font-weight: 700;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	transition: background-color 0.08s ease-out;
+}
+
+.step-btn:hover {
+	background-color: rgba( 110, 220, 140, 0.4 );
+}
+
+.step-value {
+	flex-grow: 1;
+	text-align: center;
+	color: white;
+	font-size: 15px;
+	font-weight: 700;
+}
+
+// ── Toggle pill ──────────────────────────────────────────────────────────────
+
+.toggle {
+	width: 56px;
+	height: 28px;
+	background-color: rgba( 255, 255, 255, 0.08 );
+	border: 1px solid rgba( 255, 255, 255, 0.18 );
+	border-radius: 999px;
+	cursor: pointer;
+	transition: background-color 0.12s ease-out;
+}
+
+.toggle.on {
+	background-color: rgba( 110, 220, 140, 0.6 );
+	border-color: rgb( 110, 220, 140 );
+}
+
+.toggle-knob {
+	width: 22px;
+	height: 22px;
+	margin: 2px;
+	background-color: white;
+	border-radius: 50%;
+	transition: transform 0.12s ease-out;
+}
+
+.toggle.on .toggle-knob {
+	transform: translateX( 28px );
+}
+
+// ── Speed picker (mirrors the previous in-menu version) ──────────────────────
+
+.speed-row {
+	flex-direction: row;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.12s ease-out;
+	flex-shrink: 0;
+	margin-top: 6px;
+}
+
+.speed-row:hover {
+	background-color: rgba( 255, 255, 255, 0.07 );
+	border-color: rgba( 255, 255, 255, 0.25 );
+}
+
+.speed-row.current {
+	background-color: rgba( 110, 220, 140, 0.16 );
+	border-color: rgb( 110, 220, 140 );
+}
+
+.speed-row.locked {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.speed-row.locked:hover {
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border-color: rgba( 255, 255, 255, 0.08 );
+}
+
+.speed-mult {
+	width: 56px;
+	color: rgb( 110, 220, 140 );
+	font-size: 22px;
+	font-weight: 700;
+	text-align: center;
+}
+
+.speed-row.locked .speed-mult {
+	color: rgba( 255, 255, 255, 0.4 );
+}
+
+.speed-info {
+	flex-direction: column;
+	flex-grow: 1;
+}
+
+.speed-name {
+	color: white;
+	font-size: 15px;
+	font-weight: 700;
+}
+
+.speed-desc {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	margin-top: 1px;
+	white-space: normal;
+}
+
+.speed-lock {
+	color: rgba( 255, 200, 80, 0.85 );
+	font-size: 11px;
+	font-weight: 600;
+	margin-top: 3px;
+	white-space: normal;
+}
+
+.speed-status {
+	width: 64px;
+	text-align: center;
+	padding: 5px 8px;
+	font-size: 12px;
+	font-weight: 700;
+	color: rgba( 255, 255, 255, 0.7 );
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border-radius: 6px;
+}
+
+.speed-row.current .speed-status {
+	color: rgb( 18, 24, 30 );
+	background-color: rgb( 110, 220, 140 );
+}

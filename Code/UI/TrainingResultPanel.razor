@@ -1,0 +1,61 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+@* Shows a celebratory "training result" card when an off-site session
+   completes — surfaced as a queue on TrainingManager.PendingResults so
+   multiple completions stack up and the player Continue's through them. *@
+
+<root class="@(HasResult ? "open" : "closed")">
+	@if ( HasResult )
+	{
+		<div class="backdrop"></div>
+		<div class="card">
+			<div class="card-eyebrow">TRAINING COMPLETE</div>
+			<div class="card-title">@Result.WorkerName</div>
+			<div class="card-offer">@Result.OfferName</div>
+
+			<div class="card-stat-block">
+				<div class="card-stat-icon">@Result.Stat.Icon()</div>
+				<div class="card-stat-name">@Result.Stat.DisplayName()</div>
+				<div class="card-stat-numbers">
+					<div class="card-stat-before">@Result.StatBefore</div>
+					<div class="card-stat-arrow">→</div>
+					<div class="card-stat-after">@Result.StatAfter</div>
+					<div class="card-stat-gain">+@(Result.StatAfter - Result.StatBefore)</div>
+				</div>
+			</div>
+
+			<div class="card-continue" onclick=@Continue>Continue</div>
+		</div>
+	}
+</root>
+
+@code {
+	/// True when a training result is queued AND no other higher-priority
+	/// modal is fighting for the same screen real estate. The publish
+	/// modal (Project.Phase == Finished, awaiting click) wins — players
+	/// shouldn't have to triage two celebration modals at once. Once the
+	/// publish flow is dealt with, the queued training result reveals.
+	private bool          HasResult => (TrainingManager.Instance?.PendingResults.Count > 0)
+	                               && !PublishPending;
+
+	/// True while a Finished project is sitting in the publish modal.
+	/// GameProjectManager.Publish clears Current, which flips this back
+	/// to false and lets the training result appear.
+	private bool          PublishPending =>
+		GameProjectManager.Instance?.Current?.Phase == GameProjectPhase.Finished;
+
+	private TrainingResult Result   => HasResult ? TrainingManager.Instance!.PendingResults[0] : null;
+
+	private void Continue() => TrainingManager.Instance?.DequeuePendingResult();
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		HasResult,
+		PublishPending,
+		Result?.WorkerName,
+		Result?.OfferName,
+		(int)(Result?.Stat ?? 0),
+		Result?.StatBefore ?? 0,
+		Result?.StatAfter  ?? 0 );
+}

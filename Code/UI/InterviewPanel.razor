@@ -1,0 +1,73 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+@* Interview reveal modal. Auto-opens whenever HRManager.InterviewSubject is
+   set — hire/pass actions clear the subject and the panel disappears.
+   Only the stats listed in Subject.RevealedStats are shown as numbers; the
+   rest render as "?" so the player has to make the hire decision with
+   incomplete information. The 2-of-6 reveal is set by HRManager when the
+   interview begins (future questionnaire feature will let the player buy
+   more reveals). *@
+
+<root class="@(IsOpen ? "open" : "closed")">
+	@if ( IsOpen )
+	{
+		<div class="backdrop"></div>
+		<div class="card">
+			<div class="card-eyebrow">@(Subject.IsTutorialHire ? "FIRST HIRE — REQUIRED" : "INTERVIEW")</div>
+			<div class="card-title">@Subject.Name</div>
+
+			<div class="salary-block">
+				<div class="salary-label">ASKING MONTHLY SALARY</div>
+				<div class="salary-value">$@Subject.Salary.ToString("N0")</div>
+			</div>
+
+			<div class="stat-grid">
+				@foreach ( var stat in AllStats )
+				{
+					var revealed = Subject.RevealedStats.Contains( stat );
+					<div class="stat-row @(revealed ? "revealed" : "hidden")">
+						<div class="stat-icon">@stat.Icon()</div>
+						<div class="stat-name">@stat.DisplayName()</div>
+						<div class="stat-value">@(revealed ? stat.AverageOf( Subject.Stats ).ToString() : "?")</div>
+					</div>
+				}
+			</div>
+
+			<div class="actions">
+				<div class="btn hire" onclick=@(() => Hire())>Hire</div>
+				@if ( !Subject.IsTutorialHire )
+				{
+					<div class="btn pass" onclick=@(() => Pass())>Pass</div>
+				}
+			</div>
+
+			<div class="footnote">
+				@(Subject.IsTutorialHire
+					? "Your starting teammate. Hire to begin."
+					: $"Only {Subject.RevealedStats.Count} of 6 stats revealed. Pick carefully.")
+			</div>
+		</div>
+	}
+</root>
+
+@code {
+	private bool      IsOpen  => HRManager.Instance?.IsInterviewing ?? false;
+	private Employee  Subject => HRManager.Instance?.InterviewSubject;
+
+	private static readonly MainStat[] AllStats =
+	{
+		MainStat.Programming, MainStat.Design,    MainStat.Creativity,
+		MainStat.Artistry,    MainStat.Sound,     MainStat.Focus,
+	};
+
+	private void Hire() => HRManager.Instance?.HireInterviewSubject();
+	private void Pass() => HRManager.Instance?.PassOnInterviewSubject();
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		IsOpen,
+		Subject?.Name,
+		Subject?.Salary,
+		Subject?.RevealedStats.Count ?? 0 );
+}

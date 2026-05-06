@@ -1,0 +1,210 @@
+// Staff inspection modal. Same dimensions and rhythm as InterviewPanel —
+// the player should feel "this is the same kind of card, but for someone
+// already on staff". Differences vs InterviewPanel: no hidden stats, no
+// hire/pass buttons, abilities row added, single Close action.
+
+StaffStatsPanel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	font-family: Poppins;
+	z-index: 200;
+}
+
+StaffStatsPanel.open   { pointer-events: all; }
+StaffStatsPanel.closed .backdrop,
+StaffStatsPanel.closed .card { display: none; }
+
+.backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.65 );
+}
+
+.card {
+	position: absolute;
+	left:   50%;
+	top:    50%;
+	width:  640px;
+	transform: translate( -50%, -50% );
+	background-color: rgba( 18, 24, 30, 0.98 );
+	border: 2px solid rgba( 110, 220, 140, 0.55 );
+	border-radius: 18px;
+	flex-direction: column;
+	align-items: center;
+	padding: 32px 36px 28px 36px;
+	box-shadow: 0px 14px 60px 0px rgba( 0, 0, 0, 0.7 );
+}
+
+.card-eyebrow {
+	color: rgb( 110, 220, 140 );
+	font-size: 13px;
+	font-weight: 800;
+	letter-spacing: 5px;
+	margin-bottom: 8px;
+}
+
+.card-title {
+	color: white;
+	font-size: 30px;
+	font-weight: 800;
+	letter-spacing: 1px;
+	margin-bottom: 22px;
+}
+
+.salary-block {
+	flex-direction: column;
+	align-items: center;
+	width: 100%;
+	padding: 14px 24px 16px 24px;
+	background-color: rgba( 110, 220, 140, 0.08 );
+	border: 1px solid rgba( 110, 220, 140, 0.4 );
+	border-radius: 12px;
+	margin-bottom: 22px;
+}
+
+.salary-label {
+	color: rgba( 110, 220, 140, 0.85 );
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 4px;
+	margin-bottom: 4px;
+}
+
+.salary-value {
+	color: white;
+	font-size: 32px;
+	font-weight: 800;
+	letter-spacing: 1px;
+}
+
+.stat-grid {
+	flex-direction: column;
+	width: 100%;
+	gap: 6px;
+	margin-bottom: 20px;
+}
+
+.stat-row {
+	flex-direction: row;
+	align-items: center;
+	padding: 10px 16px;
+	background-color: rgba( 110, 220, 140, 0.10 );
+	border: 1px solid rgba( 110, 220, 140, 0.45 );
+	border-radius: 10px;
+	gap: 14px;
+}
+
+.stat-icon {
+	font-size: 22px;
+	width: 30px;
+	color: white;
+}
+
+.stat-name {
+	flex-grow: 1;
+	color: rgba( 255, 255, 255, 0.85 );
+	font-size: 16px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.stat-value {
+	color: rgb( 110, 220, 140 );
+	font-size: 22px;
+	font-weight: 800;
+	min-width: 60px;
+	text-align: right;
+}
+
+// Over-cap accent — when a stat has been pushed past the natural 1000
+// ceiling by training / project XP / furniture, render the number in
+// hot magenta so the "elite" status is visually obvious.
+.stat-value.over-cap {
+	color: rgb( 255, 120, 200 );
+	text-shadow: 0px 0px 8px rgba( 255, 120, 200, 0.55 );
+}
+
+// Furniture-boost delta — gold accent so it reads as a "from your office"
+// bonus, distinct from the base white-on-green stat number.
+.stat-boost {
+	color: rgb( 240, 200, 110 );
+	font-size: 14px;
+	font-weight: 700;
+}
+
+// Abilities row — sits between stats and the close button.
+.abilities-block {
+	flex-direction: column;
+	align-items: center;
+	width: 100%;
+	padding: 12px 16px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.10 );
+	border-radius: 10px;
+	margin-bottom: 18px;
+}
+
+.abilities-label {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 4px;
+	margin-bottom: 6px;
+}
+
+.abilities-list {
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+}
+
+.ability-chip {
+	color: rgb( 110, 180, 255 );
+	background-color: rgba( 110, 180, 255, 0.12 );
+	border: 1px solid rgba( 110, 180, 255, 0.45 );
+	padding: 6px 14px;
+	border-radius: 999px;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.ability-empty {
+	color: rgba( 255, 255, 255, 0.35 );
+	font-size: 14px;
+	font-style: italic;
+}
+
+.actions {
+	flex-direction: row;
+	width: 100%;
+}
+
+.btn {
+	flex-grow: 1;
+	flex-direction: row;
+	justify-content: center;
+	align-items: center;
+	padding: 12px 0;
+	border-radius: 10px;
+	color: white;
+	font-size: 15px;
+	font-weight: 800;
+	letter-spacing: 2.5px;
+	text-align: center;
+	cursor: pointer;
+	border: 1px solid transparent;
+}
+
+.btn.close-btn {
+	background-color: rgba( 255, 255, 255, 0.08 );
+	border-color: rgba( 255, 255, 255, 0.20 );
+}
+
+.btn.close-btn:hover {
+	background-color: rgba( 255, 255, 255, 0.16 );
+}

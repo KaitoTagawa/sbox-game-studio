@@ -1,0 +1,108 @@
+@using Sandbox;
+@using Sandbox.UI;
+@using System.Linq;
+@inherits PanelComponent
+
+@* Desk-assign picker. Opens whenever InventoryManager.AssigningItem is set —
+   listing every desk slot in the scene with the employee sitting there (or
+   "Empty" if the desk has no hire). Click a row → InventoryManager places
+   the assigning item on that desk's matching mount, displacing whatever was
+   there into storage. *@
+
+<root class="@(IsOpen ? "open" : "closed")">
+	@if ( IsOpen )
+	{
+		<div class="backdrop" onclick=@(() => Cancel())></div>
+		<div class="card">
+			<div class="card-eyebrow">ASSIGN TO DESK</div>
+			<div class="card-title">@(Entry?.Name ?? "Item")</div>
+			<div class="card-subtitle">Pick a desk for this @(Entry?.Slot.DisplayName().ToLower() ?? "item").</div>
+
+			<div class="desk-list">
+				@if ( DeskRows.Count == 0 )
+				{
+					<div class="empty">No desks placed yet. Buy a Desk first.</div>
+				}
+				else
+				{
+					@foreach ( var row in DeskRows )
+					{
+						var r = row;
+						<div class="desk-row" onclick=@(() => Pick( r.SlotId ))>
+							<div class="desk-row-label">@r.Label</div>
+							<div class="desk-row-meta">@r.Meta</div>
+						</div>
+					}
+				}
+			</div>
+
+			<div class="actions">
+				<div class="btn cancel" onclick=@(() => Cancel())>Cancel</div>
+			</div>
+		</div>
+	}
+</root>
+
+@code {
+	private bool                       IsOpen => InventoryManager.Instance?.IsAssigning ?? false;
+	private InventoryItem              Item   => InventoryManager.Instance?.AssigningItem;
+	private InventoryCatalogue.Entry   Entry  => Item is null ? null : InventoryCatalogue.Get( Item.Kind );
+
+	private record DeskRow( System.Guid SlotId, string Label, string Meta );
+
+	/// One row per Desk slot in the scene. Label = employee name when the
+	/// desk is occupied, "Desk N — empty" otherwise. Sorted desks-with-
+	/// employees first so the player's most likely picks are at the top.
+	private List<DeskRow> DeskRows
+	{
+		get
+		{
+			var list = new List<DeskRow>();
+			var inv  = InventoryManager.Instance;
+			var hr   = HRManager.Instance;
+			if ( inv is null ) return list;
+
+			foreach ( var slot in inv.Slots )
+			{
+				if ( slot.Kind != SlotKind.Desk ) continue;
+
+				EmployeeNPC occupant = null;
+				if ( hr is not null )
+				{
+					foreach ( var npc in hr.Staff )
+					{
+						if ( npc.DeskSlotId == slot.Id ) { occupant = npc; break; }
+					}
+				}
+
+				string label = occupant?.EmployeeName ?? inv.LabelForDeskSlot( slot.Id );
+				string meta  = occupant is null
+					? "Empty desk"
+					: $"{occupant.Role} · {inv.LabelForDeskSlot( slot.Id )}";
+				list.Add( new DeskRow( slot.Id, label, meta ) );
+			}
+
+			// Occupied desks first.
+			return list
+				.OrderBy( r => r.Meta == "Empty desk" ? 1 : 0 )
+				.ThenBy( r => r.Label )
+				.ToList();
+		}
+	}
+
+	private void Pick( System.Guid slotId )
+	{
+		InventoryManager.Instance?.AssignToDesk( slotId );
+	}
+
+	private void Cancel()
+	{
+		InventoryManager.Instance?.CancelAssign();
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		IsOpen,
+		Item?.Kind ?? 0,
+		HRManager.Instance?.Staff.Count ?? 0,
+		DeskRows.Count );
+}

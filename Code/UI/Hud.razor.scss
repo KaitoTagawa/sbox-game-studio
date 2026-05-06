@@ -1,0 +1,265 @@
+Hud {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	font-family: Poppins;
+	pointer-events: none;
+	// Sit at the back so the calendar / money / energy pills + the
+	// in-flight project widget always render behind any open modal
+	// (menu, shop, gallery, settings, create-game). Each modal sets
+	// z-index: 100 to come out on top. Notifications used to live here
+	// too — they've moved to NotificationsOverlay (own ScreenPanel at
+	// ZIndex 1000) so they can render above modals.
+	z-index: 1;
+}
+
+// ── Container ──────────────────────────────────────────────────────────────
+
+.hud-corner {
+	position: absolute;
+	top: 24px;
+	left: 24px;
+	flex-direction: column;
+	gap: 12px;
+}
+
+// ── Base pill ──────────────────────────────────────────────────────────────
+
+.stat-pill {
+	flex-direction: row;
+	align-items: center;
+	gap: 12px;
+	padding: 14px 26px;
+	background-color: rgba( 15, 20, 25, 0.82 );
+	border-radius: 12px;
+	color: white;
+	box-shadow: 0px 4px 22px 0px rgba( 0, 0, 0, 0.5 );
+}
+
+// ── Calendar pill (steel blue) ──────────────────────────────────────────────
+
+.stat-pill.calendar {
+	border: 2px solid rgba( 120, 180, 255, 0.8 );
+	gap: 8px;
+	align-items: baseline;
+}
+
+.cal-icon {
+	font-size: 28px;
+	color: rgb( 140, 190, 255 );
+	text-shadow: 0px 0px 10px rgba( 140, 190, 255, 0.55 );
+	align-self: center;
+}
+
+// Day number and month name are both large — the main readable info
+.cal-day {
+	font-size: 34px;
+	font-weight: 700;
+	color: white;
+}
+
+.cal-month {
+	font-size: 34px;
+	font-weight: 600;
+	color: rgba( 200, 225, 255, 0.9 );
+}
+
+// Year is deliberately small — secondary info
+.cal-year {
+	font-size: 17px;
+	font-weight: 400;
+	color: rgba( 255, 255, 255, 0.4 );
+}
+
+// ── Money pill (green) ──────────────────────────────────────────────────────
+
+.stat-pill.money {
+	border: 2px solid rgba( 80, 200, 120, 0.85 );
+}
+
+.money-icon {
+	color: rgb( 110, 220, 140 );
+	text-shadow: 0px 0px 10px rgba( 110, 220, 140, 0.55 );
+}
+
+// ── Energy pill (amber) ─────────────────────────────────────────────────────
+
+.stat-pill.energy {
+	border: 2px solid rgba( 255, 185, 40, 0.8 );
+}
+
+.energy-icon {
+	color: rgb( 255, 200, 60 );
+	text-shadow: 0px 0px 10px rgba( 255, 200, 60, 0.55 );
+}
+
+// ── Shared icon + value styles ──────────────────────────────────────────────
+
+.pill-icon {
+	font-size: 30px;
+	font-weight: 700;
+}
+
+.pill-value {
+	font-size: 30px;
+	font-weight: 600;
+	letter-spacing: 0.5px;
+}
+
+// ── Top-right column (progress widget + notifications) ────────────────────
+// Single anchored column: in-flight project widget on top, notification
+// toasts stacked below. Progress widget only renders while a project is in
+// Production, so when nothing's in flight this collapses to just the toast
+// stack — same visual position as before.
+
+.hud-right {
+	position: absolute;
+	top: 24px;
+	right: 24px;
+	flex-direction: column;
+	gap: 14px;
+	pointer-events: none;        // container passes through; children opt in
+	width: 560px;
+	align-items: flex-end;
+	z-index: 10;
+}
+
+// ── In-flight project widget ──────────────────────────────────────────────
+
+// Read-only status widget — not clickable. Re-opening the publish modal
+// happens via auto-pop (menu→game transition) and the GameMenu's "Create
+// Game" tile, so the HUD widget itself doesn't need to be a clickable
+// affordance and shouldn't pretend to be one.
+.hud-progress {
+	flex-direction: column;
+	width: 100%;
+	background-color: rgba( 18, 24, 30, 0.94 );
+	border: 2px solid rgba( 110, 220, 140, 0.55 );
+	border-radius: 16px;
+	padding: 22px 26px;
+	box-shadow: 0px 10px 36px 0px rgba( 0, 0, 0, 0.55 );
+}
+
+.prog-head {
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 14px;
+}
+
+.prog-title {
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	flex-grow: 1;
+}
+
+.prog-pct {
+	color: rgb( 110, 220, 140 );
+	font-size: 22px;
+	font-weight: 700;
+}
+
+// "READY TO SHIP" doesn't fit at 22 px in the HUD's narrow column —
+// shrink and recolour amber to make the moment-of-completion legible
+// without spilling over.
+.prog-pct.ready {
+	color: rgb( 235, 200, 110 );
+	font-size: 13px;
+	letter-spacing: 1.5px;
+}
+
+.prog-bar {
+	height: 16px;
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 8px;
+	margin-bottom: 14px;
+}
+
+.prog-fill {
+	height: 100%;
+	background-color: rgba( 110, 220, 140, 0.75 );
+	border-radius: 8px;
+}
+
+// Three-pillar score row — matches the create-game modal's layout. Sized
+// up 2026-04-29 so the per-category readouts are legible at a glance from
+// across the room; row eats full width so cells space evenly.
+
+.prog-pts-row {
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 4px 0 2px 0;
+}
+
+// Fixed-width cell: icon column has a stable footprint and the number box
+// reserves space for up to 4 digits (max pillar score = 1000). Without this
+// the cells reflow as digits grow ("9" → "10" → "100"), which shifts every
+// icon's horizontal position because `justify-content: space-between` keeps
+// the row's edges anchored but redistributes the middle cell.
+
+.prog-pts-cell {
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+	width: 110px;
+	flex-shrink: 0;
+}
+
+.prog-pts-icon {
+	font-size: 28px;
+	width: 32px;
+	flex-shrink: 0;
+}
+
+.prog-pts-num {
+	color: rgb( 110, 220, 140 );
+	font-size: 28px;
+	font-weight: 800;
+	letter-spacing: 0.5px;
+	min-width: 60px;
+}
+
+// ── Notifications stack (normal layer — info / success only) ──────────────
+// info / success toasts are ambient signals — they sit inside the Hud
+// at the normal HUD z-level so an open modal naturally covers them up.
+// warning / danger toasts render through NotificationsOverlay (ZIndex
+// 1000) so they always pop on top.
+.hud-notifications {
+	flex-direction: column;
+	gap: 12px;
+	width: 100%;
+	align-items: flex-end;
+	pointer-events: none;
+}
+
+.toast {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	width: 392px;
+	padding: 18px 28px;
+	background-color: rgba( 15, 20, 25, 0.82 );
+	border-radius: 12px;
+	box-shadow: 0px 4px 22px 0px rgba( 0, 0, 0, 0.5 );
+}
+
+.toast.toast-info    { border: 2px solid rgba( 120, 180, 255, 0.8 ); }
+.toast.toast-success { border: 2px solid rgba(  80, 200, 120, 0.85 ); }
+
+.toast-title {
+	color: white;
+	font-size: 26px;
+	font-weight: 700;
+	letter-spacing: 0.3px;
+}
+
+.toast-text {
+	color: rgba( 255, 255, 255, 0.7 );
+	font-size: 22px;
+	font-weight: 500;
+}
+

@@ -5,14 +5,16 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
 
 ## Technology Stack
 
-- **Engine**: [CHOOSE: Godot 4 / Unity / Unreal Engine 5]
-- **Language**: [CHOOSE: GDScript / C# / C++ / Blueprint]
+- **Engine**: s&box (Source 2 + .NET) — version pinned 2026-04-27 (1.0 launch)
+- **Language**: C# (.NET, primary)
 - **Version Control**: Git with trunk-based development
-- **Build System**: [SPECIFY after choosing engine]
-- **Asset Pipeline**: [SPECIFY after choosing engine]
+- **Build System**: s&box editor build system + dotnet
+- **Asset Pipeline**: s&box content/asset system (Source 2 .vmdl, .vmat, .vsndevts, etc.)
 
-> **Note**: Engine-specialist agents exist for Godot, Unity, and Unreal with
-> dedicated sub-specialists. Use the set matching your engine.
+> **Note**: s&box is NOT one of the template's natively supported engines
+> (Godot/Unity/Unreal). No dedicated `sbox-specialist` agent exists. C# code
+> review uses general-purpose agents; engine-specific patterns require manual
+> verification against https://sbox.game/dev/doc.
 
 ## Project Structure
 
@@ -20,7 +22,7 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
 
 ## Engine Version Reference
 
-@docs/engine-reference/godot/VERSION.md
+@docs/engine-reference/sbox/VERSION.md
 
 ## Technical Preferences
 

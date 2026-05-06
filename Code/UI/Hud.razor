@@ -1,0 +1,154 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+<root>
+	<div class="hud-corner">
+		<div class="stat-pill calendar">
+			<div class="pill-icon cal-icon">📅</div>
+			<div class="cal-day">@Day</div>
+			<div class="cal-month">@MonthShort</div>
+			<div class="cal-year">@Year</div>
+		</div>
+		<div class="stat-pill money">
+			<div class="pill-icon money-icon">$</div>
+			<div class="pill-value">@DisplayMoney</div>
+		</div>
+		<div class="stat-pill energy">
+			<div class="pill-icon energy-icon">⚡</div>
+			<div class="pill-value">@Energy</div>
+		</div>
+	</div>
+
+	@* Top-right column. Progress widget sits above the notification stack so
+	   toasts always slide in below the in-flight project. *@
+	<div class="hud-right">
+		@if ( ShowProgress )
+		{
+			@* Single combined bar — all three pillars advance at the same rate
+			   post-2026-04-29 rework. Score is broken down per category with an
+			   icon. Mirrors the create-game modal's production-view card. *@
+			<div class="hud-progress">
+				<div class="prog-head">
+					<div class="prog-title">@ProjectTitle</div>
+					<div class="prog-pct @(IsFinished ? "ready" : "")">@(IsFinished ? "READY TO SHIP" : $"{OverallPct}%")</div>
+				</div>
+				<div class="prog-bar">
+					<div class="prog-fill" style="@WidthStyle( OverallProgress )"></div>
+				</div>
+				<div class="prog-pts-row">
+					<div class="prog-pts-cell">
+						<div class="prog-pts-icon">🎮</div>
+						<div class="prog-pts-num">@(Project?.DesignPoints ?? 0)</div>
+					</div>
+					<div class="prog-pts-cell">
+						<div class="prog-pts-icon">🎵</div>
+						<div class="prog-pts-num">@(Project?.SoundPoints ?? 0)</div>
+					</div>
+					<div class="prog-pts-cell">
+						<div class="prog-pts-icon">🎨</div>
+						<div class="prog-pts-num">@(Project?.GraphicsPoints ?? 0)</div>
+					</div>
+				</div>
+			</div>
+		}
+
+		@* Hud renders info / success (ambient) toasts on the normal HUD
+		   layer — behind modals, same as the calendar/money pills. The
+		   attention-grabbing warning / danger toasts render through
+		   NotificationsOverlay (ZIndex 1000) so they pop on top of any
+		   open menu. Filter mirrors NotificationsOverlay's. *@
+		<div class="hud-notifications">
+			@foreach ( var toast in Toasts )
+			{
+				if ( toast.Kind == "warning" || toast.Kind == "danger" ) continue;
+				var t = toast;
+				<div class="toast toast-@t.Kind">
+					<div class="toast-title">@t.Title</div>
+					<div class="toast-text">@t.Body</div>
+				</div>
+			}
+		</div>
+	</div>
+</root>
+
+@code {
+	private long   Money      => GameManager.Instance?.Money      ?? 0;
+	private int    Energy     => GameManager.Instance?.Energy     ?? 0;
+	private int    Day        => GameManager.Instance?.Day        ?? 1;
+	private int    Month      => GameManager.Instance?.Month      ?? 1;
+	private int    Year       => GameManager.Instance?.Year       ?? 1;
+	private string MonthShort => GameManager.Instance?.MonthShort ?? "Jan";
+
+	private string DisplayMoney => Money.ToString( "N0" );
+
+	private IReadOnlyList<Notifications.Toast> Toasts => Notifications.Active;
+
+	// ── In-flight project widget ─────────────────────────────────────────────
+	// Shown only while a project is actually in Production. Setup phase is
+	// hidden behind the modal anyway, and Finished is handled by Step 5d.
+
+	private GameProject Project => GameProjectManager.Instance?.Current;
+
+	/// Widget appears for both Production (live progress) and Finished
+	/// (the "READY TO SHIP" state) so the HUD acts as a one-click way back
+	/// into the publish modal. Hides while any modal is open.
+	private bool ShowProgress =>
+		Project is not null &&
+		(Project.Phase == GameProjectPhase.Production
+		 || Project.Phase == GameProjectPhase.Finished) &&
+		!(GameProjectManager.Instance?.IsOpen ?? false);
+
+	private bool IsFinished =>
+		Project is not null && Project.Phase == GameProjectPhase.Finished;
+
+	private string ProjectTitle =>
+		string.IsNullOrWhiteSpace( Project?.Title ) ? "Untitled Project" : Project.Title;
+
+	/// All active pillars advance at the same rate, so we just read the first
+	/// pillar with non-zero effort. Sacrificed pillars sit at 1.0 from
+	/// BeginProduction onward — averaging them in would falsely lift the
+	/// readout at t=0. Same logic as <c>CreateGamePanel.OverallProgress</c>.
+	private float OverallProgress
+	{
+		get
+		{
+			if ( Project is null )                  return 0f;
+			if ( Project.DesignTime   > 0f )        return Project.DesignProgress;
+			if ( Project.SoundTime    > 0f )        return Project.SoundProgress;
+			if ( Project.GraphicsTime > 0f )        return Project.GraphicsProgress;
+			return 1f;
+		}
+	}
+
+	private int OverallPct => (int)MathF.Round( OverallProgress * 100f );
+
+	/// Total quality points across all three pillars. Drives the HUD
+	/// widget's score readout — same value the in-modal production view
+	/// shows as its headline.
+	private int TotalPoints =>
+		(Project?.DesignPoints ?? 0)
+		+ (Project?.SoundPoints ?? 0)
+		+ (Project?.GraphicsPoints ?? 0);
+
+	/// Inline `width:%` string for a progress fill. Same pattern the create-
+	/// game panel uses — keeps the Razor expression dead simple.
+	private static string WidthStyle( float fraction ) =>
+		$"width: {fraction * 100f:0.##}%;";
+
+	// Re-render whenever toast list changes too. Count + first ShownAt is a cheap proxy.
+	protected override int BuildHash() =>
+		System.HashCode.Combine(
+			System.HashCode.Combine(
+				Money, Energy, Day, Month, Year,
+				Toasts.Count,
+				Toasts.Count > 0 ? Toasts[0].ShownAt : 0f ),
+			ShowProgress,
+			GameProjectManager.Instance?.IsOpen ?? false,
+			ProjectTitle,
+			// Quantise progress to ~1 % so the bar redraws smoothly without
+			// burst-rebuilding every frame; pts ticks on its own integer cadence.
+			(int)(OverallProgress * 100f),
+			TotalPoints,
+			IsFinished );
+}

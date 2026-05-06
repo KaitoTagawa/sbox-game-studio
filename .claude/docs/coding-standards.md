@@ -9,6 +9,30 @@
   For UI changes, verify with screenshots. Compare expected output to actual output
   before marking work complete. Every implementation should have a way to prove it works.
 
+# Save DTO Standards (per ADR-0001)
+
+Classes that participate in `GameSaveManager` persistence — anything passed to
+`FileSystem.Data.WriteJson` / `ReadJson<T>` or referenced from `GameSave`,
+`MetaSave`, or `SettingsSave` — follow these rules. Enforcement is **manual at
+review time**: s&box's compile sandbox blocks `System.Reflection`
+(`Assembly.GetTypes`, `Type.GetProperties`, etc.), so an automated boot-time
+validator is not buildable in this engine. Reviewers must check new DTOs
+against this list when persistence changes land.
+
+- **Public auto-properties only.** Every persisted member is `public T Foo { get; set; }`.
+  Plain fields are silently ignored by `WriteJson`/`ReadJson<T>` — they load as
+  default values with no error and corrupt the save invisibly.
+- **No `init`-only setters.** s&box's deserializer can't write through `init`.
+  Use `{ get; set; }` even when the value is conceptually immutable.
+- **No `Component` references.** Components are scene objects, not data.
+  Persist a stable identifier instead — `Guid` for slots, `string` for hires
+  by name, `ItemKind` for items, an enum value, etc.
+- **No `GameObject` references.** Same reason as `Component`.
+- **DTO classes live in `Code/Save/`** (or named with a `Save` suffix when
+  they have to live alongside their owning system for friend-access reasons).
+- **Schema changes go through a migrator.** Bumping `GameSaveManager.SchemaVersion`
+  requires a matching `MigrateFromVN` method in `GameSaveMigrations`.
+
 # Design Document Standards
 
 - All design docs use Markdown

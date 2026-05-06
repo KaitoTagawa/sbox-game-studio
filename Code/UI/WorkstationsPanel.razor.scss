@@ -1,0 +1,227 @@
+// Workstations hub. Same window-rhythm as ShopPanel / GalleryPanel —
+// full-screen modal with a header + scrolling body of desk cards.
+
+WorkstationsPanel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	font-family: Poppins;
+	z-index: 200;
+}
+
+WorkstationsPanel.open   { pointer-events: all; }
+WorkstationsPanel.closed .backdrop,
+WorkstationsPanel.closed .window { display: none; }
+
+.backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.65 );
+}
+
+.window {
+	// Edge-pinned with percentage margins, matching ShopPanel / GalleryPanel.
+	// Fully constrained so yoga can size the scrolling body deterministically
+	// from the remaining vertical space (see .body comment below).
+	position: absolute;
+	left:   17.5%;
+	right:  17.5%;
+	top:     5%;
+	bottom:  5%;
+	background-color: rgba( 18, 24, 30, 0.98 );
+	border: 2px solid rgba( 110, 180, 255, 0.55 );
+	border-radius: 18px;
+	flex-direction: column;
+	box-shadow: 0px 14px 60px 0px rgba( 0, 0, 0, 0.7 );
+}
+
+.header {
+	flex-direction: column;
+	padding: 22px 28px 14px 28px;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
+}
+
+.title {
+	color: white;
+	font-size: 22px;
+	font-weight: 800;
+	letter-spacing: 5px;
+}
+
+.subtitle {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 13px;
+	letter-spacing: 1px;
+	margin-top: 4px;
+}
+
+.close-btn {
+	position: absolute;
+	right: 14px;
+	top:   12px;
+	width:  32px;
+	height: 32px;
+	justify-content: center;
+	align-items: center;
+	color: white;
+	font-size: 22px;
+	font-weight: 800;
+	cursor: pointer;
+	border-radius: 6px;
+}
+
+.close-btn:hover { background-color: rgba( 255, 255, 255, 0.12 ); }
+
+.body {
+	// Canonical scroll-container fix copied from ShopPanel: `flex: 1 1 0` +
+	// `min-height: 0` forces yoga to size from remaining window space (not
+	// content), so overflow:scroll has the correct viewport to clip + scroll
+	// against. Without flex-basis: 0, the body collapses to its content
+	// height and the desk cards extend past the window — clicks on the
+	// pickers land in dead space because the actual elements aren't where
+	// they appear to be.
+	flex-direction: column;
+	flex-grow: 1;
+	flex-shrink: 1;
+	flex-basis: 0;
+	min-height: 0;
+	padding: 18px 28px 24px 28px;
+	overflow: scroll;
+}
+
+.empty-large {
+	color: rgba( 255, 255, 255, 0.45 );
+	font-size: 16px;
+	font-style: italic;
+	padding: 60px 0;
+	justify-content: center;
+	text-align: center;
+}
+
+.desk-cards {
+	flex-direction: column;
+	gap: 12px;
+	flex-shrink: 0;
+}
+
+.desk-card {
+	flex-direction: column;
+	background-color: rgba( 110, 180, 255, 0.06 );
+	border: 1px solid rgba( 110, 180, 255, 0.25 );
+	border-radius: 12px;
+	padding: 14px 18px;
+	flex-shrink: 0;
+}
+
+.desk-head {
+	flex-direction: column;
+	margin-bottom: 10px;
+}
+
+.desk-name {
+	color: white;
+	font-size: 16px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.desk-meta {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 1px;
+	margin-top: 2px;
+}
+
+.mount-rows {
+	flex-direction: column;
+	gap: 6px;
+}
+
+.mount-row {
+	flex-direction: row;
+	align-items: center;
+	padding: 8px 12px;
+	background-color: rgba( 0, 0, 0, 0.25 );
+	border: 1px solid rgba( 255, 255, 255, 0.06 );
+	border-radius: 8px;
+}
+
+.mount-row.picking {
+	border-color: rgba( 110, 180, 255, 0.55 );
+	background-color: rgba( 110, 180, 255, 0.10 );
+}
+
+.mount-label {
+	color: rgba( 255, 255, 255, 0.65 );
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 2px;
+	width: 100px;
+}
+
+.mount-current {
+	flex-grow: 1;
+	color: white;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.mount-btn {
+	background-color: rgba( 110, 180, 255, 0.20 );
+	border: 1px solid rgba( 110, 180, 255, 0.55 );
+	border-radius: 6px;
+	padding: 6px 14px;
+	color: white;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+	cursor: pointer;
+}
+
+.mount-btn:hover { background-color: rgba( 110, 180, 255, 0.32 ); }
+
+.picker {
+	flex-direction: column;
+	margin-top: 6px;
+	margin-left: 24px;
+	gap: 4px;
+}
+
+.picker-empty {
+	color: rgba( 255, 255, 255, 0.45 );
+	font-size: 12px;
+	font-style: italic;
+	padding: 8px 12px;
+}
+
+.picker-row {
+	flex-direction: row;
+	align-items: center;
+	padding: 8px 12px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.10 );
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.picker-row:hover {
+	background-color: rgba( 110, 180, 255, 0.18 );
+	border-color: rgba( 110, 180, 255, 0.5 );
+}
+
+.picker-name {
+	color: white;
+	font-size: 13px;
+	font-weight: 600;
+	flex-grow: 1;
+}
+
+.picker-cat {
+	color: rgba( 255, 255, 255, 0.45 );
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 1px;
+}

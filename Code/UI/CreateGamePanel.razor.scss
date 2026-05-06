@@ -1,0 +1,990 @@
+CreateGamePanel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	font-family: Poppins;
+	// Highest priority modal in the project — the publish flow is the
+	// celebration moment that should never sit behind another panel.
+	// Above sub-modals (z 200), tutorial / training-result (z 300), and
+	// every base modal (z 100). TrainingResultPanel defers via its own
+	// PublishPending check so they don't fight at the same level.
+	z-index: 400;
+}
+
+CreateGamePanel.open {
+	pointer-events: all;
+}
+
+CreateGamePanel.closed .backdrop,
+CreateGamePanel.closed .window {
+	display: none;
+}
+
+.backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.55 );
+}
+
+.window {
+	position: absolute;
+
+	// ── Edge-pinned layout (auto-fits any viewport) ────────────────────────
+	// Width: 65% of viewport (17.5% margin each side → 35% narrower than
+	// full-edge). Height: 24px from top and bottom so bottom never clips.
+	// To revert to the original fixed 1080×720 centred modal, comment the
+	// four lines below and uncomment the five lines under "Original".
+	left: 17.5%;
+	right: 17.5%;
+	top: 24px;
+	bottom: 24px;
+
+	// ── Original fixed-size centred modal (kept here for easy revert) ─────
+	// left: 50%;
+	// top: 50%;
+	// transform: translate( -50%, -50% );
+	// width: 1080px;
+	// height: 720px;
+
+	background-color: rgba( 18, 24, 30, 0.96 );
+	border: 2px solid rgba( 110, 220, 140, 0.5 );
+	border-radius: 14px;
+	flex-direction: column;
+	box-shadow: 0px 10px 40px 0px rgba( 0, 0, 0, 0.6 );
+}
+
+// ── Header ─────────────────────────────────────────────────────────────────
+
+.header {
+	flex-direction: row;
+	align-items: center;
+	padding: 18px 24px;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
+}
+
+.title {
+	color: white;
+	font-size: 26px;
+	font-weight: 700;
+	letter-spacing: 2px;
+	flex-grow: 1;
+}
+
+.step-pill {
+	color: rgb( 110, 220, 140 );
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	background-color: rgba( 110, 220, 140, 0.12 );
+	border: 1px solid rgba( 110, 220, 140, 0.35 );
+	border-radius: 16px;
+	padding: 6px 14px;
+	margin-right: 14px;
+}
+
+.close-btn {
+	width: 36px;
+	height: 36px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border-radius: 6px;
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+}
+
+.close-btn:hover {
+	background-color: rgba( 220, 80, 80, 0.6 );
+}
+
+// ── Body ───────────────────────────────────────────────────────────────────
+
+.body {
+	// Canonical scroll-container fix — see GalleryPanel for the rationale.
+	// flex-basis: 0 + min-height: 0 forces yoga to size purely from remaining
+	// space; without it the body collapses to content height under
+	// percentage-sized parents and the bottom of long pages gets clipped.
+	flex-grow: 1;
+	flex-shrink: 1;
+	flex-basis: 0;
+	min-height: 0;
+	flex-direction: column;
+	padding: 22px 28px;
+	overflow: scroll;
+}
+
+.section {
+	flex-direction: column;
+	margin-bottom: 22px;
+}
+
+.section-label {
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 10px;
+}
+
+.section-label-text {
+	color: rgba( 255, 255, 255, 0.75 );
+	font-size: 18px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+	flex-grow: 1;
+}
+
+.slot-count {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.slot-count.full {
+	color: rgb( 110, 220, 140 );
+}
+
+// ── Title input ────────────────────────────────────────────────────────────
+
+.title-input {
+	// Sized + weighted to match the genre-tag readout (white, bold, larger
+	// face) so the title field doesn't feel like an afterthought next to
+	// the prominent genre grid below.
+	height: 56px;
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border: 1px solid rgba( 255, 255, 255, 0.12 );
+	border-radius: 8px;
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	padding: 0 16px;
+
+	// TextEntry renders the live value inside a nested <label> that
+	// inherits its own color rules; force white + bold so the typed text
+	// is actually readable against the dark window background. Same for
+	// the placeholder.
+	label {
+		color: white;
+		font-weight: 700;
+	}
+}
+
+.title-input:focus {
+	border-color: rgba( 110, 220, 140, 0.6 );
+	background-color: rgba( 255, 255, 255, 0.1 );
+}
+
+// ── Genre tags ─────────────────────────────────────────────────────────────
+// Uniform width + height so every tile occupies the same footprint whether
+// it's locked (extra "🔒 Achievement Name" line) or just the genre name.
+// justify-content: center keeps the content vertically aligned in both cases.
+
+.tag-row {
+	flex-direction: row;
+	flex-wrap: wrap;
+}
+
+.tag {
+	width: 140px;
+	height: 64px;
+	flex-direction: column;
+	justify-content: center;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 8px;
+	padding: 6px 12px;
+	margin: 4px;
+	cursor: pointer;
+}
+
+.tag:hover {
+	background-color: rgba( 110, 220, 140, 0.1 );
+	border-color: rgba( 110, 220, 140, 0.4 );
+}
+
+.tag.picked {
+	background-color: rgba( 110, 220, 140, 0.2 );
+	border-color: rgb( 110, 220, 140 );
+}
+
+.tag.locked {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.tag.locked:hover {
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border-color: rgba( 255, 255, 255, 0.1 );
+}
+
+.tag.blocked {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.tag.blocked:hover {
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border-color: rgba( 255, 255, 255, 0.1 );
+}
+
+.tag-name {
+	color: white;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.tag.picked .tag-name {
+	color: rgb( 110, 220, 140 );
+}
+
+.tag-lock {
+	color: rgba( 255, 220, 100, 0.85 );
+	font-size: 9px;
+	margin-top: 2px;
+}
+
+// ── Summary panel ──────────────────────────────────────────────────────────
+
+.summary {
+	flex-direction: row;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 10px;
+	padding: 14px 18px;
+	margin-top: 4px;
+}
+
+.summary-line {
+	flex-direction: column;
+	flex-grow: 1;
+}
+
+.summary-label {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+}
+
+.summary-value {
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	margin-top: 2px;
+}
+
+.summary-value.positive { color: rgb( 110, 220, 140 ); }
+.summary-value.negative { color: rgb( 220, 100, 100 ); }
+.summary-value.neutral  { color: rgba( 255, 255, 255, 0.7 ); }
+
+// ── Page 2 — staff allocation grid ─────────────────────────────────────────
+// Each row is one employee. Left column shows their name / role / OVR /
+// ability pills, then five toggle cells for the dev roles, then an
+// efficiency badge on the right that colour-codes the diminishing-returns
+// hit a player takes by stacking jobs on the same person.
+
+// Single-line hint sentence. white-space: nowrap is the load-bearing rule —
+// without it, long copy can wrap and trigger the s&box yoga bug where
+// multi-line text inside a flex parent collapses height and overlaps the
+// header row above it. Keep the copy tight enough to fit at the modal's
+// body width (~830px at 1280p × 65% modal width).
+.alloc-hint {
+	color: rgba( 255, 255, 255, 0.78 );
+	font-size: 14px;
+	font-weight: 500;
+	letter-spacing: 0.2px;
+	margin-top: 8px;
+	white-space: nowrap;
+}
+
+.staff-grid {
+	flex-direction: column;
+	background-color: rgba( 255, 255, 255, 0.03 );
+	border: 1px solid rgba( 255, 255, 255, 0.07 );
+	border-radius: 10px;
+	padding: 6px;
+}
+
+.staff-row {
+	flex-direction: row;
+	align-items: center;
+	padding: 8px 10px;
+	border-radius: 6px;
+	margin-bottom: 2px;
+}
+
+.staff-row:hover {
+	background-color: rgba( 255, 255, 255, 0.04 );
+}
+
+.staff-row.header-row {
+	padding: 4px 10px;
+	margin-bottom: 4px;
+}
+
+.staff-row.header-row:hover {
+	background-color: transparent;
+}
+
+.staff-row.hacking {
+	background-color: rgba( 170, 110, 220, 0.08 );
+	border: 1px solid rgba( 170, 110, 220, 0.35 );
+}
+
+// Founder row — subtle gold tint so the player's own avatar stands out
+// from hires without screaming. Hacking takes precedence (the player can't
+// have SuperHacker today, but the rule is consistent).
+.staff-row.founder {
+	background-color: rgba( 230, 200, 110, 0.06 );
+	border: 1px solid rgba( 230, 200, 110, 0.3 );
+}
+
+.staff-info {
+	flex-direction: column;
+	width: 320px;
+	flex-shrink: 0;
+}
+
+.staff-name {
+	color: white;
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.staff-meta {
+	flex-direction: row;
+	align-items: center;
+	margin-top: 2px;
+}
+
+.staff-role {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 11px;
+	letter-spacing: 0.5px;
+	margin-right: 8px;
+}
+
+.staff-ovr {
+	color: rgb( 110, 220, 140 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+.staff-abilities {
+	flex-direction: row;
+	flex-wrap: wrap;
+	margin-top: 4px;
+}
+
+.ability-pill {
+	background-color: rgba( 255, 255, 255, 0.08 );
+	border: 1px solid rgba( 255, 255, 255, 0.15 );
+	border-radius: 10px;
+	padding: 1px 7px;
+	margin-right: 4px;
+	margin-top: 2px;
+	color: rgba( 255, 255, 255, 0.8 );
+	font-size: 10px;
+	font-weight: 600;
+}
+
+.ability-pill.hacker {
+	background-color: rgba( 170, 110, 220, 0.18 );
+	border-color: rgba( 170, 110, 220, 0.6 );
+	color: rgb( 200, 160, 240 );
+}
+
+.ability-pill.founder {
+	background-color: rgba( 230, 200, 110, 0.18 );
+	border-color: rgba( 230, 200, 110, 0.6 );
+	color: rgb( 240, 215, 130 );
+	letter-spacing: 1px;
+}
+
+// ── Role toggle cells ──────────────────────────────────────────────────────
+
+.role-cell {
+	width: 110px;
+	height: 48px;
+	flex-shrink: 0;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 6px;
+	margin-right: 6px;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+}
+
+.role-cell:hover {
+	background-color: rgba( 110, 220, 140, 0.12 );
+	border-color: rgba( 110, 220, 140, 0.4 );
+}
+
+.role-cell.picked {
+	background-color: rgba( 110, 220, 140, 0.25 );
+	border-color: rgb( 110, 220, 140 );
+}
+
+.role-cell.role-header {
+	background-color: transparent;
+	border: 1px solid transparent;
+	cursor: default;
+}
+
+.role-cell.role-header:hover {
+	background-color: transparent;
+	border-color: transparent;
+}
+
+.role-name {
+	color: rgba( 255, 255, 255, 0.7 );
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	text-align: center;
+}
+
+.check {
+	color: rgb( 110, 220, 140 );
+	font-size: 18px;
+	font-weight: 700;
+}
+
+// ── Efficiency badge ───────────────────────────────────────────────────────
+
+.eff-badge {
+	width: 86px;
+	height: 32px;
+	flex-shrink: 0;
+	margin-left: 8px;
+	border-radius: 14px;
+	align-items: center;
+	justify-content: center;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	color: rgba( 255, 255, 255, 0.6 );
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+.eff-badge.eff-header {
+	background-color: transparent;
+	border: 1px solid transparent;
+	color: rgba( 255, 255, 255, 0.45 );
+	font-size: 11px;
+	letter-spacing: 1px;
+}
+
+.eff-badge.eff-zero {
+	color: rgba( 255, 255, 255, 0.4 );
+}
+
+.eff-badge.eff-full {
+	background-color: rgba( 110, 220, 140, 0.18 );
+	border-color: rgba( 110, 220, 140, 0.55 );
+	color: rgb( 110, 220, 140 );
+}
+
+.eff-badge.eff-half {
+	background-color: rgba( 220, 200, 110, 0.16 );
+	border-color: rgba( 220, 200, 110, 0.5 );
+	color: rgb( 230, 210, 130 );
+}
+
+.eff-badge.eff-quarter {
+	background-color: rgba( 220, 140, 90, 0.16 );
+	border-color: rgba( 220, 140, 90, 0.5 );
+	color: rgb( 235, 160, 110 );
+}
+
+.eff-badge.eff-thin {
+	background-color: rgba( 220, 90, 90, 0.16 );
+	border-color: rgba( 220, 90, 90, 0.5 );
+	color: rgb( 235, 120, 120 );
+}
+
+.eff-badge.eff-hacker {
+	background-color: rgba( 170, 110, 220, 0.2 );
+	border-color: rgba( 170, 110, 220, 0.6 );
+	color: rgb( 210, 170, 245 );
+}
+
+// ── Page 3 — time-allocation sliders ───────────────────────────────────────
+// Three rows (Design / Sound / Graphics) each showing a labelled bar with a
+// 60% sweet-spot tick and −/+/Reset controls. The header carries the running
+// total against the 10-minute cap; over-cap turns the readout red ("CRUNCH").
+
+.time-total {
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+.time-total.zero   { color: rgba( 255, 255, 255, 0.4 ); }
+.time-total.ok     { color: rgb( 110, 220, 140 ); }
+.time-total.crunch { color: rgb( 235, 110, 110 ); }
+
+.time-sliders {
+	flex-direction: column;
+	background-color: rgba( 255, 255, 255, 0.03 );
+	border: 1px solid rgba( 255, 255, 255, 0.07 );
+	border-radius: 10px;
+	padding: 10px 14px;
+}
+
+.time-row {
+	flex-direction: column;
+	padding: 10px 0;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.05 );
+}
+
+.time-row:last-child {
+	border-bottom: 1px solid transparent;
+}
+
+.time-row-header {
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 8px;
+}
+
+.time-label {
+	flex-direction: column;
+	flex-grow: 1;
+}
+
+.time-label-name {
+	color: white;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+}
+
+.time-label-hint {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 11px;
+	font-style: italic;
+	margin-top: 2px;
+}
+
+.time-pct {
+	font-size: 22px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.time-pct.zero  { color: rgba( 255, 255, 255, 0.35 ); }
+.time-pct.under { color: rgb( 110, 220, 140 ); }
+.time-pct.near  { color: rgb( 235, 200, 110 ); }
+.time-pct.over  { color: rgb( 235, 110, 110 ); }
+
+// ── Bar + cap shading ─────────────────────────────────────────────────────
+// `.time-fill` is the player's effort, drawn from 0 to slider%.
+// `.time-cap`  is the greyed-out region from cap% to 100% — visually shows
+// how much of the slider is locked off by the team's current capacity.
+
+.time-bar {
+	position: relative;
+	height: 14px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 7px;
+	margin-bottom: 8px;
+}
+
+.time-fill {
+	height: 100%;
+	border-radius: 7px;
+	background-color: rgba( 110, 220, 140, 0.55 );
+}
+
+.time-cap {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	background-color: rgba( 0, 0, 0, 0.45 );
+	border-left: 1px solid rgba( 235, 110, 110, 0.55 );
+	border-radius: 0 7px 7px 0;
+}
+
+// ── Buttons + cost readout ─────────────────────────────────────────────────
+
+.time-controls {
+	flex-direction: row;
+	align-items: center;
+}
+
+.time-btn {
+	width: 36px;
+	height: 30px;
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border: 1px solid rgba( 255, 255, 255, 0.12 );
+	border-radius: 6px;
+	color: white;
+	font-size: 18px;
+	font-weight: 700;
+	align-items: center;
+	justify-content: center;
+	margin-right: 6px;
+	cursor: pointer;
+}
+
+.time-btn:hover {
+	background-color: rgba( 110, 220, 140, 0.18 );
+	border-color: rgba( 110, 220, 140, 0.5 );
+}
+
+.time-reset {
+	height: 30px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 6px;
+	color: rgba( 255, 255, 255, 0.7 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	padding: 0 12px;
+	align-items: center;
+	justify-content: center;
+	margin-right: 12px;
+	cursor: pointer;
+}
+
+.time-reset:hover {
+	background-color: rgba( 255, 255, 255, 0.1 );
+	color: white;
+}
+
+.time-cost {
+	color: rgba( 255, 255, 255, 0.6 );
+	font-size: 12px;
+	font-weight: 600;
+	margin-left: auto;
+}
+
+// ── Production view (Phase == Production / Finished) ──────────────────────
+// Replaces the three setup pages once the player commits. Top banner shows
+// the project's title + genre chips, then a stack of three big pillar bars,
+// then a horizontal roster strip with one column per dev role.
+
+.prod-banner {
+	flex-direction: column;
+	background-color: rgba( 110, 220, 140, 0.05 );
+	border: 1px solid rgba( 110, 220, 140, 0.25 );
+	border-radius: 10px;
+	padding: 14px 18px;
+	margin-bottom: 22px;
+}
+
+.prod-title {
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.prod-genres {
+	flex-direction: row;
+	flex-wrap: wrap;
+	margin-top: 6px;
+}
+
+.prod-genre {
+	background-color: rgba( 110, 220, 140, 0.18 );
+	border: 1px solid rgba( 110, 220, 140, 0.45 );
+	border-radius: 10px;
+	padding: 2px 10px;
+	margin-right: 6px;
+	margin-top: 2px;
+	color: rgb( 180, 240, 200 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+// ── Pillar bars ────────────────────────────────────────────────────────────
+
+.prod-pillars {
+	flex-direction: column;
+	background-color: rgba( 255, 255, 255, 0.03 );
+	border: 1px solid rgba( 255, 255, 255, 0.07 );
+	border-radius: 10px;
+	padding: 14px 18px;
+	margin-bottom: 22px;
+}
+
+.prod-pillar {
+	flex-direction: column;
+	padding: 10px 0;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.05 );
+}
+
+.prod-pillar:last-child {
+	border-bottom: 1px solid transparent;
+}
+
+.prod-pillar-head {
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 8px;
+}
+
+.prod-pillar-name {
+	color: white;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+	flex-grow: 1;
+}
+
+.prod-pillar-stats {
+	flex-direction: row;
+	align-items: center;
+}
+
+.prod-pts {
+	color: rgb( 110, 220, 140 );
+	font-size: 13px;
+	font-weight: 700;
+	margin-right: 14px;
+}
+
+.prod-pct {
+	color: white;
+	font-size: 13px;
+	font-weight: 700;
+	margin-right: 14px;
+}
+
+.prod-eta {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.prod-bar {
+	height: 18px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 9px;
+}
+
+.prod-fill {
+	height: 100%;
+	background-color: rgba( 110, 220, 140, 0.7 );
+	border-radius: 9px;
+}
+
+// Single combined-progress card (post-2026-04-29 rework). Replaces the three
+// per-pillar bars; the headline is the points the game has earned so far.
+
+.prod-pillar-summary {
+	padding: 14px 0 6px 0;
+	border-bottom: 1px solid transparent;
+}
+
+// Three pillar-points cells stacked horizontally inside .prod-pillar-head.
+// Each cell pairs a category icon with its point total; the row eats the
+// flex-grow so .prod-pillar-stats (% / ETA) sits flush to the right.
+
+.prod-pts-row {
+	flex-direction: row;
+	align-items: center;
+	gap: 28px;
+	flex-grow: 1;
+}
+
+// Fixed cell width — same logic as the HUD widget. Reserves room for up to
+// 4 digits (max pillar score = 1000) so the icon doesn't shift horizontally
+// when the number grows from "9" to "10" to "100".
+
+.prod-pts-cell {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	width: 110px;
+	flex-shrink: 0;
+}
+
+.prod-pts-icon {
+	font-size: 26px;
+	width: 32px;
+	flex-shrink: 0;
+}
+
+.prod-pts-num {
+	color: rgb( 110, 220, 140 );
+	font-size: 28px;
+	font-weight: 800;
+	letter-spacing: 0.5px;
+	min-width: 60px;
+}
+
+.prod-pillar-summary .prod-bar {
+	height: 22px;
+	border-radius: 11px;
+}
+
+.prod-pillar-summary .prod-fill {
+	border-radius: 11px;
+}
+
+// ── Team roster strip ──────────────────────────────────────────────────────
+
+.prod-roster {
+	flex-direction: row;
+	background-color: rgba( 255, 255, 255, 0.03 );
+	border: 1px solid rgba( 255, 255, 255, 0.07 );
+	border-radius: 10px;
+	padding: 12px;
+}
+
+.prod-role-col {
+	flex-direction: column;
+	flex-grow: 1;
+	flex-basis: 0;
+	padding: 0 8px;
+	border-right: 1px solid rgba( 255, 255, 255, 0.05 );
+}
+
+.prod-role-col:last-child {
+	border-right: 1px solid transparent;
+}
+
+.prod-role-head {
+	color: rgba( 255, 255, 255, 0.6 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	margin-bottom: 8px;
+	text-align: center;
+}
+
+.prod-role-empty {
+	color: rgba( 255, 255, 255, 0.3 );
+	font-size: 11px;
+	font-style: italic;
+	text-align: center;
+}
+
+.prod-role-worker {
+	flex-direction: row;
+	align-items: center;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 6px;
+	padding: 4px 8px;
+	margin-bottom: 4px;
+}
+
+.prod-worker-name {
+	color: white;
+	font-size: 12px;
+	font-weight: 600;
+	flex-grow: 1;
+}
+
+.prod-worker-eff {
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	padding: 1px 6px;
+	border-radius: 8px;
+	background-color: rgba( 255, 255, 255, 0.06 );
+}
+
+// Re-use the eff-* color modifiers from the staff-grid section so the
+// roster's per-worker badges stay consistent with the assignment grid.
+.prod-worker-eff.eff-full    { background-color: rgba( 110, 220, 140, 0.18 ); color: rgb( 110, 220, 140 ); }
+.prod-worker-eff.eff-half    { background-color: rgba( 220, 200, 110, 0.16 ); color: rgb( 230, 210, 130 ); }
+.prod-worker-eff.eff-quarter { background-color: rgba( 220, 140,  90, 0.16 ); color: rgb( 235, 160, 110 ); }
+.prod-worker-eff.eff-thin    { background-color: rgba( 220,  90,  90, 0.16 ); color: rgb( 235, 120, 120 ); }
+.prod-worker-eff.eff-zero    { background-color: rgba( 255, 255, 255, 0.04 ); color: rgba( 255, 255, 255, 0.4 ); }
+
+// ── Placeholder (page 2 / 3 / no project) ──────────────────────────────────
+
+.placeholder {
+	flex-grow: 1;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
+.ph-title {
+	color: white;
+	font-size: 24px;
+	font-weight: 700;
+	margin-bottom: 8px;
+}
+
+.ph-text {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 14px;
+}
+
+// ── Footer ─────────────────────────────────────────────────────────────────
+
+.footer {
+	flex-direction: row;
+	padding: 16px 24px;
+	border-top: 1px solid rgba( 255, 255, 255, 0.08 );
+	align-items: center;
+}
+
+.btn {
+	background-color: rgba( 255, 255, 255, 0.06 );
+	color: white;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	padding: 10px 22px;
+	border-radius: 8px;
+	cursor: pointer;
+	margin-left: 10px;
+}
+
+.btn:hover {
+	background-color: rgba( 255, 255, 255, 0.12 );
+}
+
+.btn.cancel {
+	margin-left: 0;
+	margin-right: auto;
+}
+
+.btn.cancel:hover {
+	background-color: rgba( 220, 80, 80, 0.4 );
+}
+
+.btn.next {
+	background-color: rgb( 60, 140, 80 );
+}
+
+.btn.next:hover {
+	background-color: rgb( 75, 165, 95 );
+}
+
+.btn.next.disabled {
+	background-color: rgba( 60, 140, 80, 0.3 );
+	color: rgba( 255, 255, 255, 0.4 );
+	cursor: not-allowed;
+}
+
+// Publish-game variant — the ship-it footer button. Beefier than the
+// regular next-button so the moment-of-publishing feels celebratory.
+
+.btn.next.publish {
+	background-color: rgb( 90, 175, 110 );
+	font-size: 16px;
+	letter-spacing: 1.5px;
+	padding: 0 28px;
+}
+
+.btn.next.publish:hover {
+	background-color: rgb( 110, 200, 130 );
+}

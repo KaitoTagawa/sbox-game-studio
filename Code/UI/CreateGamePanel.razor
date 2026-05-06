@@ -1,0 +1,642 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop" onclick=@Close></div>
+	<div class="window">
+		<div class="header">
+			<div class="title">@HeaderTitle</div>
+			<div class="step-pill">@StepPillLabel</div>
+			<div class="close-btn" onclick=@Close>×</div>
+		</div>
+
+		<div class="body">
+			@if ( Project is null )
+			{
+				<div class="placeholder">
+					<div class="ph-title">No project in flight</div>
+					<div class="ph-text">Open the menu and click "Create Game" to begin.</div>
+				</div>
+			}
+			else if ( Project.Phase == GameProjectPhase.Production
+			          || Project.Phase == GameProjectPhase.Finished )
+			{
+				@* ── In-progress / completed view ─────────────────────────── *@
+				<div class="prod-banner">
+					<div class="prod-title">@Project.Title</div>
+					<div class="prod-genres">
+						@foreach ( var g in Project.Genres )
+						{
+							var info = GameGenres.Get( g );
+							<div class="prod-genre">@info.Name</div>
+						}
+					</div>
+				</div>
+
+				<div class="section">
+					<div class="section-label">
+						<div class="section-label-text">PROGRESS</div>
+						<div class="time-total ok">@ProductionPctLabel</div>
+					</div>
+				</div>
+
+				@* All three pillars advance at the same rate (post-2026-04-29 rework),
+				   so a single combined bar is the honest picture. The headline shows
+				   each pillar's points side-by-side with category icons. *@
+				<div class="prod-pillars">
+					<div class="prod-pillar prod-pillar-summary">
+						<div class="prod-pillar-head">
+							<div class="prod-pts-row">
+								<div class="prod-pts-cell">
+									<div class="prod-pts-icon">🎮</div>
+									<div class="prod-pts-num">@(Project.DesignPoints)</div>
+								</div>
+								<div class="prod-pts-cell">
+									<div class="prod-pts-icon">🎵</div>
+									<div class="prod-pts-num">@(Project.SoundPoints)</div>
+								</div>
+								<div class="prod-pts-cell">
+									<div class="prod-pts-icon">🎨</div>
+									<div class="prod-pts-num">@(Project.GraphicsPoints)</div>
+								</div>
+							</div>
+							<div class="prod-pillar-stats">
+								<div class="prod-pct">@FormatPct( OverallProgress )</div>
+								<div class="prod-eta">@EtaLabel( 1f, OverallProgress )</div>
+							</div>
+						</div>
+						<div class="prod-bar">
+							<div class="prod-fill" style="@WidthStyle( OverallProgress )"></div>
+						</div>
+					</div>
+				</div>
+
+				<div class="section">
+					<div class="section-label">
+						<div class="section-label-text">TEAM</div>
+					</div>
+				</div>
+
+				<div class="prod-roster">
+					@foreach ( var role in Roles )
+					{
+						var r       = role;
+						var workers = Project.Assignments[r];
+						<div class="prod-role-col">
+							<div class="prod-role-head">@r.DisplayName()</div>
+							@if ( workers.Count == 0 )
+							{
+								<div class="prod-role-empty">— unstaffed —</div>
+							}
+							else
+							{
+								@foreach ( var worker in workers )
+								{
+									var w  = worker;
+									var rc = Project.RoleCountFor( w );
+									<div class="prod-role-worker">
+										<div class="prod-worker-name">@w.Name</div>
+										<div class="prod-worker-eff @EffClass( rc, false )">
+											@($"{(GameProject.EfficiencyForRoleCount(rc) * 100):0}%")
+										</div>
+									</div>
+								}
+							}
+						</div>
+					}
+				</div>
+			}
+			else if ( SetupPage == 0 )
+			{
+				@* ── Page 1: Title + Genres ──────────────────────────────── *@
+				<div class="section">
+					<div class="section-label">
+						<div class="section-label-text">ENTER YOUR TITLE HERE</div>
+					</div>
+					<TextEntry class="title-input" Value:bind="@Title" Placeholder="My Awesome Game" />
+				</div>
+
+				<div class="section">
+					<div class="section-label">
+						<div class="section-label-text">GENRES</div>
+						<div class="slot-count @(SlotsFull ? "full" : "")">@Project.Genres.Count / @SlotMax selected</div>
+					</div>
+
+					<div class="tag-row">
+						@* Hide locked genres entirely instead of showing them as lock-
+						   pinned tiles. Players discover locked genres elsewhere (the
+						   Gallery's Unlocks tab lists them with their unlock hints). *@
+						@foreach ( var info in GameGenres.All )
+						{
+							if ( !GameGenres.IsUnlocked( info.Genre ) ) continue;
+
+							var g       = info;
+							var picked  = Project.Genres.Contains( g.Genre );
+							var blocked = !picked && SlotsFull;
+							<div class="tag @(picked ? "picked" : "") @(blocked ? "blocked" : "")"
+							     onclick=@(() => Toggle( g.Genre ))>
+								<div class="tag-name">@g.Name</div>
+							</div>
+						}
+					</div>
+				</div>
+
+			}
+			else if ( SetupPage == 1 )
+			{
+				@* ── Page 2: Employee allocation ─────────────────────────── *@
+				<div class="section">
+					<div class="section-label">
+						<div class="section-label-text">ASSIGN STAFF TO ROLES</div>
+						<div class="slot-count">@TotalAssignments assignment@(TotalAssignments == 1 ? "" : "s")</div>
+					</div>
+					<div class="alloc-hint">Each extra role halves their effectiveness — unstaffed pillars contribute nothing to the final game.</div>
+				</div>
+
+				@if ( Staff.Count == 0 )
+				{
+					<div class="placeholder">
+						<div class="ph-title">No workers available</div>
+						<div class="ph-text">Attach a PlayerStats component to your player GameObject so the founder shows up here, or hire someone in HR.</div>
+					</div>
+				}
+				else
+				{
+					<div class="staff-grid">
+						@* Column-header row above the toggle cells. *@
+						<div class="staff-row header-row">
+							<div class="staff-info"></div>
+							@foreach ( var role in Roles )
+							{
+								<div class="role-cell role-header" title="@role.Description()">
+									<div class="role-name">@role.DisplayName()</div>
+								</div>
+							}
+							<div class="eff-badge eff-header">EFF</div>
+						</div>
+
+						@foreach ( var npc in Staff )
+						{
+							var n          = npc;
+							var roleCount  = Project.RoleCountFor( n );
+							var eff        = GameProject.EfficiencyForRoleCount( roleCount );
+							var unassigned = roleCount == 0;
+							var hacking    = unassigned &&
+								( n.Ability1 == EmployeeAbility.SuperHacker
+								  || n.Ability2 == EmployeeAbility.SuperHacker );
+
+							<div class="staff-row @(hacking ? "hacking" : "") @(n.IsPlayer ? "founder" : "")">
+								<div class="staff-info">
+									<div class="staff-name">@n.Name</div>
+									<div class="staff-meta">
+										<div class="staff-role">@n.Role</div>
+										<div class="staff-ovr">OVR @n.Stats.Overall</div>
+									</div>
+									<div class="staff-abilities">
+										@if ( n.IsPlayer )
+										{
+											<div class="ability-pill founder">FOUNDER</div>
+										}
+										@if ( n.Ability1 is { } a1 )
+										{
+											<div class="ability-pill @(a1 == EmployeeAbility.SuperHacker ? "hacker" : "")">@a1.DisplayName()</div>
+										}
+										@if ( n.Ability2 is { } a2 )
+										{
+											<div class="ability-pill @(a2 == EmployeeAbility.SuperHacker ? "hacker" : "")">@a2.DisplayName()</div>
+										}
+									</div>
+								</div>
+
+								@foreach ( var role in Roles )
+								{
+									var r      = role;
+									var picked = Project.Assignments[r].Contains( n );
+									<div class="role-cell @(picked ? "picked" : "")"
+									     onclick=@(() => ToggleAssign( n, r ))>
+										@if ( picked )
+										{
+											<div class="check">✓</div>
+										}
+									</div>
+								}
+
+								<div class="eff-badge @EffClass( roleCount, hacking )">
+									@if ( hacking )
+									{
+										<div>🥷 Hacking</div>
+									}
+									else if ( roleCount == 0 )
+									{
+										<div>—</div>
+									}
+									else
+									{
+										<div>@($"{(eff * 100):0}%")</div>
+									}
+								</div>
+							</div>
+						}
+					</div>
+				}
+			}
+			else
+			{
+				@* ── Page 3: Effort allocation ─────────────────────────── *@
+				<div class="section">
+					<div class="section-label">
+						<div class="section-label-text">EFFORT PER PILLAR</div>
+						<div class="time-total ok">@BudgetLabel</div>
+					</div>
+					<div class="alloc-hint">Effort sets each pillar's quality points at ship — total points across all three drive the review score.</div>
+				</div>
+
+				<div class="time-sliders">
+					@* ── DESIGN ──────────────────────────────────────────── *@
+					<div class="time-row">
+						<div class="time-row-header">
+							<div class="time-label">
+								<div class="time-label-name">DESIGN</div>
+								<div class="time-label-hint">Mechanics, balance, fun</div>
+							</div>
+							<div class="time-pct @PctClass( Project.DesignTime, MaxDesignEffort )">@FormatPct( Project.DesignTime )</div>
+						</div>
+						<div class="time-bar">
+							<div class="time-fill" style="@WidthStyle( Project.DesignTime )"></div>
+							<div class="time-cap"  style="@CapStyle( MaxDesignEffort )"></div>
+						</div>
+						<div class="time-controls">
+							<div class="time-btn"   onclick=@(() => BumpDesign( -0.05f ))>−</div>
+							<div class="time-btn"   onclick=@(() => BumpDesign( +0.05f ))>+</div>
+							<div class="time-reset" onclick=@(() => GameProjectManager.Instance?.SetDesignTime( 0.6f ))>Reset</div>
+							<div class="time-cost">max @FormatPct( MaxDesignEffort )</div>
+						</div>
+					</div>
+
+					@* ── SOUND ───────────────────────────────────────────── *@
+					<div class="time-row">
+						<div class="time-row-header">
+							<div class="time-label">
+								<div class="time-label-name">SOUND</div>
+								<div class="time-label-hint">Effects, music, mix</div>
+							</div>
+							<div class="time-pct @PctClass( Project.SoundTime, MaxSoundEffort )">@FormatPct( Project.SoundTime )</div>
+						</div>
+						<div class="time-bar">
+							<div class="time-fill" style="@WidthStyle( Project.SoundTime )"></div>
+							<div class="time-cap"  style="@CapStyle( MaxSoundEffort )"></div>
+						</div>
+						<div class="time-controls">
+							<div class="time-btn"   onclick=@(() => BumpSound( -0.05f ))>−</div>
+							<div class="time-btn"   onclick=@(() => BumpSound( +0.05f ))>+</div>
+							<div class="time-reset" onclick=@(() => GameProjectManager.Instance?.SetSoundTime( 0.6f ))>Reset</div>
+							<div class="time-cost">max @FormatPct( MaxSoundEffort )</div>
+						</div>
+					</div>
+
+					@* ── GRAPHICS ────────────────────────────────────────── *@
+					<div class="time-row">
+						<div class="time-row-header">
+							<div class="time-label">
+								<div class="time-label-name">GRAPHICS</div>
+								<div class="time-label-hint">Art, animation, VFX</div>
+							</div>
+							<div class="time-pct @PctClass( Project.GraphicsTime, MaxGraphicsEffort )">@FormatPct( Project.GraphicsTime )</div>
+						</div>
+						<div class="time-bar">
+							<div class="time-fill" style="@WidthStyle( Project.GraphicsTime )"></div>
+							<div class="time-cap"  style="@CapStyle( MaxGraphicsEffort )"></div>
+						</div>
+						<div class="time-controls">
+							<div class="time-btn"   onclick=@(() => BumpGraphics( -0.05f ))>−</div>
+							<div class="time-btn"   onclick=@(() => BumpGraphics( +0.05f ))>+</div>
+							<div class="time-reset" onclick=@(() => GameProjectManager.Instance?.SetGraphicsTime( 0.6f ))>Reset</div>
+							<div class="time-cost">max @FormatPct( MaxGraphicsEffort )</div>
+						</div>
+					</div>
+				</div>
+			}
+		</div>
+
+		<div class="footer">
+			@if ( Project is null || Project.Phase == GameProjectPhase.Setup )
+			{
+				@* Setup-phase nav buttons. *@
+				<div class="btn cancel" onclick=@Cancel>Cancel</div>
+				@if ( SetupPage > 0 )
+				{
+					<div class="btn back" onclick=@Back>← Back</div>
+				}
+				<div class="btn next @(CanNext ? "" : "disabled")" onclick=@Next>
+					@(SetupPage == 2 ? "Begin Production" : "Continue →")
+				</div>
+			}
+			else if ( Project.Phase == GameProjectPhase.Finished )
+			{
+				@* Ship moment — single big publish button takes over the footer. *@
+				<div class="btn cancel" onclick=@Close>Close</div>
+				<div class="btn next publish" onclick=@Publish>Publish Game</div>
+			}
+			else
+			{
+				@* Production — modal can be closed without affecting the
+				   in-flight project; HUD widget pops it back open. *@
+				<div class="btn cancel" onclick=@Close>Close</div>
+			}
+		</div>
+	</div>
+</root>
+
+@code {
+	// ── State pulled from GameProjectManager ────────────────────────────────
+
+	private bool        IsOpen    => GameProjectManager.Instance?.IsOpen     ?? false;
+	private GameProject Project   => GameProjectManager.Instance?.Current;
+	private int         SetupPage => GameProjectManager.Instance?.SetupPage  ?? 0;
+
+	private int  SlotMax   => GameProjectManager.Instance?.GenreSlots ?? 2;
+	private bool SlotsFull => Project is not null && Project.Genres.Count >= SlotMax;
+
+	/// Two-way bound to the title TextEntry. Setter routes through the manager
+	/// so any future validation lives in one place.
+	private string Title
+	{
+		get => Project?.Title ?? "";
+		set => GameProjectManager.Instance?.SetTitle( value );
+	}
+
+	private bool CanNext => GameProjectManager.Instance?.CanAdvancePage ?? false;
+
+	// ── Header copy ─────────────────────────────────────────────────────────
+	// Title and step pill swap based on phase: setup shows "CREATE GAME" + step
+	// counter; production / finished shows the project's title + a phase tag.
+
+	private string HeaderTitle => Project is null
+		? "CREATE GAME"
+		: Project.Phase switch
+		{
+			GameProjectPhase.Production => Project.Title?.ToUpper() ?? "IN PRODUCTION",
+			GameProjectPhase.Finished   => Project.Title?.ToUpper() ?? "COMPLETE",
+			_                           => "CREATE GAME",
+		};
+
+	private string StepPillLabel => Project?.Phase switch
+	{
+		GameProjectPhase.Production => "Production",
+		GameProjectPhase.Finished   => "Complete",
+		_                           => $"Step {SetupPage + 1} of 3",
+	};
+
+	// ── Production view helpers ────────────────────────────────────────────
+
+	/// Overall project progress — all active pillars advance at the same rate
+	/// (post-2026-04-29 rework), so we just read the first one with non-zero
+	/// effort. Sacrificed pillars sit at 1.0 from BeginProduction onward, so
+	/// averaging them in would falsely lift the headline at t=0.
+	private float OverallProgress
+	{
+		get
+		{
+			if ( Project is null ) return 0f;
+			if ( Project.DesignTime   > 0f ) return Project.DesignProgress;
+			if ( Project.SoundTime    > 0f ) return Project.SoundProgress;
+			if ( Project.GraphicsTime > 0f ) return Project.GraphicsProgress;
+			return 1f;
+		}
+	}
+
+	/// Total quality points the game has earned so far — sum across all
+	/// pillars, including sacrificed ones (which contribute 0). Replaces the
+	/// per-pillar `XYZ pts` chips that used to live on each of three bars.
+	private int TotalPoints =>
+		(Project?.DesignPoints ?? 0)
+		+ (Project?.SoundPoints ?? 0)
+		+ (Project?.GraphicsPoints ?? 0);
+
+	/// "55% complete" headline for the production-view section header.
+	private string ProductionPctLabel
+	{
+		get
+		{
+			if ( Project is null ) return "";
+			return $"{MathF.Round( OverallProgress * 100f )}% complete";
+		}
+	}
+
+	/// "M:SS left" projection for one pillar. With the production loop reworked
+	/// to a fixed total duration, every active pillar takes the same wall-clock
+	/// time — its remaining ETA is just <see cref="ProjectDuration"/> × (1−progress).
+	private string EtaLabel( float allocation, float progress )
+	{
+		if ( allocation <= 0f ) return "skipped";
+		if ( progress   >= 1f ) return "done";
+		float duration  = GameProjectManager.Instance?.ProjectDuration ?? 0f;
+		float remaining = duration * (1f - progress);
+		return $"{FormatTime( remaining )} left";
+	}
+
+	// ── Page 2 — staff allocation ───────────────────────────────────────────
+
+	/// Everyone the player can slot into a dev role on the project. The studio
+	/// founder always comes first so they sit at the top of the assignment
+	/// grid; hired NPCs follow in HR order.
+	private IReadOnlyList<IDevWorker> Staff
+	{
+		get
+		{
+			var list = new List<IDevWorker>();
+			if ( PlayerStats.Instance is { } me ) list.Add( me );
+			var hires = HRManager.Instance?.Staff;
+			if ( hires is not null )
+				foreach ( var npc in hires ) list.Add( npc );
+			return list;
+		}
+	}
+
+	/// Order matters — drives the column order in the staff grid.
+	/// ProjectManager and Producer are temporarily hidden from the UI — their
+	/// gameplay impact is minimal at the moment and they'll return in a later
+	/// release. Data model keeps them intact (GameProject.Assignments still
+	/// inits both keys) so save/load and ComputePmBoost remain unchanged.
+	///
+	/// Getter (not `static readonly`) so hot-reload picks up edits to this
+	/// list — see the s&box static-readonly hot-reload trap.
+	private static GameDevRole[] Roles => new[]
+	{
+		GameDevRole.GameDirector,
+		GameDevRole.SoundDirector,
+		GameDevRole.ArtDirector,
+	};
+
+	/// Sum of every assignment list. Used for the section header counter and
+	/// for BuildHash so the grid re-renders the moment a cell flips.
+	private int TotalAssignments
+	{
+		get
+		{
+			if ( Project is null ) return 0;
+			int total = 0;
+			foreach ( var kv in Project.Assignments ) total += kv.Value.Count;
+			return total;
+		}
+	}
+
+	/// Maps role count to a CSS modifier class for the efficiency badge.
+	/// "hacker" overrides everything when the SuperHacker bonus is active.
+	private static string EffClass( int roleCount, bool hacking ) =>
+		hacking         ? "eff-hacker"
+		: roleCount == 0 ? "eff-zero"
+		: roleCount == 1 ? "eff-full"
+		: roleCount == 2 ? "eff-half"
+		: roleCount == 3 ? "eff-quarter"
+		                 : "eff-thin";
+
+	// ── Page 3 — effort allocation ─────────────────────────────────────────
+
+	private float MaxDesignEffort   => GameProjectManager.Instance?.MaxDesignEffort   ?? 0f;
+	private float MaxSoundEffort    => GameProjectManager.Instance?.MaxSoundEffort    ?? 0f;
+	private float MaxGraphicsEffort => GameProjectManager.Instance?.MaxGraphicsEffort ?? 0f;
+
+	/// "X% / Y% budget" — the page-3 header readout. Sum of the three pillar
+	/// sliders against the shared <see cref="GameProjectManager.TotalEffortBudget"/>.
+	private string BudgetLabel
+	{
+		get
+		{
+			if ( GameProjectManager.Instance is not { } mgr ) return "";
+			return $"{FormatPct( mgr.TotalEffortSpent )} / {FormatPct( mgr.TotalEffortBudget )} budget";
+		}
+	}
+
+	/// Sentence fragment used inside the alloc-hint copy: "Always ships in 6 days."
+	/// Renders whole days only (no decimal) since ProjectDuration is tuned to a
+	/// round in-game-day count — FormatTime would otherwise show "6.0 days".
+	private string DurationLabel
+	{
+		get
+		{
+			float secs = GameProjectManager.Instance?.ProjectDuration ?? 0f;
+			float days = secs / GameManager.SecondsPerDay;
+			return $"Always ships in {days:0} days";
+		}
+	}
+
+	/// In-game-day formatter used for every project duration the panel shows.
+	/// 10 real seconds = 1 in-game day (see <see cref="GameManager.SecondsPerDay"/>),
+	/// so a 60-second project reads as "6.0 days".
+	private static string FormatTime( float seconds )
+	{
+		if ( seconds <= 0f ) return "0 days";
+		float days = seconds / GameManager.SecondsPerDay;
+		if ( days < 0.1f ) return "<1 day";
+		return days < 10f
+			? $"{days:0.0} days"
+			: $"{days:0} days";
+	}
+
+	/// Percentage formatter. Reads "<1%" for non-zero values that would round
+	/// to zero so the player never sees "0%" when their team is in fact
+	/// contributing *something* — matches the bug-report fix in the
+	/// 2026-04-29 shared-budget rework.
+	private static string FormatPct( float fraction )
+	{
+		if ( fraction <= 0f ) return "0%";
+		int rounded = (int)MathF.Round( fraction * 100f );
+		if ( rounded == 0 ) return "<1%";
+		return $"{rounded}%";
+	}
+
+	/// "1.0×" or "2.5×" — the genre complexity multiplier shown in the hint copy.
+	private static string FormatMultiplier( float m ) =>
+		$"{m:0.0}×";
+
+	/// Inline `width:%` style for the time-bar fill. Pulled out into a helper
+	/// so the Razor markup never has to nest an interpolated string inside an
+	/// `@(...)` expression — that combination is a known parser footgun.
+	private static string WidthStyle( float fraction ) =>
+		$"width: {fraction * 100f:0.##}%;";
+
+	/// CSS for the greyed-out "above cap" zone. Positions the strip from the
+	/// cap to 100 % so the player visually sees how much room is locked off
+	/// by the team's current capacity.
+	private static string CapStyle( float cap )
+	{
+		float pct = MathF.Max( 0f, MathF.Min( 1f, cap ) ) * 100f;
+		return $"left: {pct:0.##}%; right: 0;";
+	}
+
+	/// Color class for the per-pillar percentage readout. Green at zero or
+	/// well-under the cap, amber as the player pushes within 90 % of the cap,
+	/// red on the cap itself (hard-stopped).
+	private static string PctClass( float fraction, float cap )
+	{
+		if ( fraction <= 0f )                return "zero";
+		if ( cap <= 0f )                     return "zero";
+		if ( fraction >= cap - 1e-4f )       return "over";
+		if ( fraction >= cap * 0.9f )        return "near";
+		return "under";
+	}
+
+
+	// ── Click handlers ──────────────────────────────────────────────────────
+
+	private void Toggle( GameGenre g ) => GameProjectManager.Instance?.ToggleGenre( g );
+
+	private void ToggleAssign( IDevWorker worker, GameDevRole role ) =>
+		GameProjectManager.Instance?.ToggleAssign( worker, role );
+
+	private void BumpDesign( float delta )
+	{
+		if ( Project is null ) return;
+		GameProjectManager.Instance?.SetDesignTime( Project.DesignTime + delta );
+	}
+
+	private void BumpSound( float delta )
+	{
+		if ( Project is null ) return;
+		GameProjectManager.Instance?.SetSoundTime( Project.SoundTime + delta );
+	}
+
+	private void BumpGraphics( float delta )
+	{
+		if ( Project is null ) return;
+		GameProjectManager.Instance?.SetGraphicsTime( Project.GraphicsTime + delta );
+	}
+
+	private void Next()
+	{
+		if ( !CanNext ) return;
+		if ( SetupPage == 2 )
+			GameProjectManager.Instance?.BeginProduction();
+		else
+			GameProjectManager.Instance?.NextPage();
+	}
+
+	private void Back()    => GameProjectManager.Instance?.PreviousPage();
+	private void Cancel()  => GameProjectManager.Instance?.CancelSetup();
+	private void Close()   => GameProjectManager.Instance?.SetOpen( false );
+	private void Publish() => GameProjectManager.Instance?.Publish();
+
+	// ── Re-render trigger ───────────────────────────────────────────────────
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		System.HashCode.Combine(
+			IsOpen, SetupPage, Project?.Title,
+			Project?.Genres.Count ?? 0,
+			Staff.Count,
+			TotalAssignments,
+			Project?.Phase ?? GameProjectPhase.Setup ),
+		System.HashCode.Combine(
+			Project?.DesignTime    ?? 0f,
+			Project?.SoundTime     ?? 0f,
+			Project?.GraphicsTime  ?? 0f,
+			// Quantise progress to ~1 % so we don't burst-rebuild every frame.
+			(int)((Project?.DesignProgress   ?? 0f) * 100f),
+			(int)((Project?.SoundProgress    ?? 0f) * 100f),
+			(int)((Project?.GraphicsProgress ?? 0f) * 100f) ),
+		Achievements.Unlocked.Count,
+		// Headline pts ticks visibly during production — re-render whenever the
+		// integer total changes (matches the score formula's natural granularity).
+		TotalPoints );
+}

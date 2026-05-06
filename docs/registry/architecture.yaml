@@ -30,7 +30,7 @@
 #   Superseded entries:     Grep pattern="status: superseded"
 
 version: 1
-last_updated: ""
+last_updated: "2026-04-30"
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -71,7 +71,25 @@ state_ownership: []
 #
 # pattern options: signal | direct_call | event_bus | shared_resource | rpc | none
 
-interfaces: []
+interfaces:
+  - contract: save_load_orchestration
+    status: active
+    pattern: direct_call
+    producer: GameSaveManager
+    consumers:
+      - GameManager           # SaveCalendar / LoadCalendar, SaveEconomy / LoadEconomy
+      - PlayerStats           # SaveFounder / LoadFounder
+      - HRManager             # SaveHires / LoadHires
+      - InventoryManager      # SaveInventory / LoadInventory
+      - GameProjectManager    # SaveActiveProject / LoadActiveProject
+      - TrainingManager       # via per-worker training DTOs
+      - Achievements          # SaveAchievements / LoadAchievements
+    adr: docs/architecture/adr-0001-save-system.md
+    contract_summary: "Each persisted system exposes a typed ToSave()/LoadFrom(dto) pair returning a public-property-only DTO. GameSaveManager composes them into a single GameSave; load is the symmetric inverse. No ISaveable interface — explicit method calls keep the schema visible in one file."
+    referenced_by:
+      - docs/architecture/adr-0001-save-system.md
+    added: 2026-04-30
+    revised: ""
 
 # Example:
 #
@@ -100,7 +118,26 @@ interfaces: []
 # Register a budget when an ADR explicitly claims a frame time allocation.
 # The registry lets /architecture-review verify the total doesn't exceed the target.
 
-performance_budgets: []
+performance_budgets:
+  - system: save_write
+    status: active
+    budget_ms: 50
+    adr: docs/architecture/adr-0001-save-system.md
+    notes: "Per-run save serialisation + Sandbox.Storage write at steady-state studio (60 hires, full inventory). Run on a fire-and-forget Task to keep main-thread frame budget intact."
+    referenced_by:
+      - docs/architecture/adr-0001-save-system.md
+    added: 2026-04-30
+    revised: ""
+
+  - system: save_load
+    status: active
+    budget_ms: 250
+    adr: docs/architecture/adr-0001-save-system.md
+    notes: "Per-run load: read JSON + reconstruct GameObjects (rehire NPCs, reapply placements). Largest expected save (year 5+ studio)."
+    referenced_by:
+      - docs/architecture/adr-0001-save-system.md
+    added: 2026-04-30
+    revised: ""
 
 # Example:
 #
@@ -131,7 +168,28 @@ performance_budgets: []
 # Register an API decision when the choice is non-obvious and other ADRs might
 # make a different choice for the same purpose without knowing this was decided.
 
-api_decisions: []
+api_decisions:
+  - purpose: per_run_save_storage
+    status: active
+    api: Sandbox.Storage.CreateEntry / saveEntry.Files.WriteJson
+    not: per-component scene-snapshot serialisation
+    adr: docs/architecture/adr-0001-save-system.md
+    reason: "Multi-slot saves are a tycoon-genre expectation. Storage gives slots + metadata + thumbnails first-class; rolling our own on FileSystem.Data would reinvent it. Scene snapshot rejected because the project's known [Property] serialization quirk silently corrupts saves on schema change."
+    referenced_by:
+      - docs/architecture/adr-0001-save-system.md
+    added: 2026-04-30
+    revised: ""
+
+  - purpose: cross_run_persistence
+    status: active
+    api: Sandbox.FileSystem.Data.WriteJson / ReadJson<T>
+    not: Sandbox.Storage
+    adr: docs/architecture/adr-0001-save-system.md
+    reason: "Meta-progression (Hall of Fame, carryover unlocks) and Settings are single-file, not slot-based. FileSystem.Data is the simpler API for that shape; Storage's multi-slot ceremony adds nothing for these domains."
+    referenced_by:
+      - docs/architecture/adr-0001-save-system.md
+    added: 2026-04-30
+    revised: ""
 
 # Example:
 #
@@ -157,7 +215,27 @@ api_decisions: []
 # Register a pattern when an ADR explicitly bans it AND other ADRs might
 # unknowingly use it (i.e., it's a tempting but wrong approach for this project).
 
-forbidden_patterns: []
+forbidden_patterns:
+  - pattern: dto_with_component_reference
+    status: active
+    description: "A persisted DTO must not hold a Sandbox.Component (or any GameObject) reference. Use a stable identifier instead — Guid for slots, name/Id for hires, ItemKind enum for items."
+    why: "Components are scene objects, not data. Serialising one either loops or captures stale references that break on load. The save layer is the system-of-record for state; components are reconstructed from it."
+    adr: docs/architecture/adr-0001-save-system.md
+    added: 2026-04-30
+
+  - pattern: dto_with_field_not_property
+    status: active
+    description: "DTOs persisted via FileSystem.Data.WriteJson / Storage.Files.WriteJson must declare data members as public auto-properties, not fields. C# auto-properties (`public T Foo { get; set; }`) are the only valid form."
+    why: "s&box's WriteJson / ReadJson<T> persist properties only — fields are silently ignored. A field-based DTO loads as default values with zero error, corrupting saves invisibly."
+    adr: docs/architecture/adr-0001-save-system.md
+    added: 2026-04-30
+
+  - pattern: per_component_isaveable
+    status: active
+    description: "Do not introduce an ISaveable interface that lets every component own its own serialised format. The save schema must be visible in one file (the GameSave DTO graph) so migrators can be written against it."
+    why: "Migration is the make-or-break property of the save system. Scattering schema across N components makes the format unknowable in aggregate, blocks meaningful schema diffs, and makes load-order bugs impossible to find."
+    adr: docs/architecture/adr-0001-save-system.md
+    added: 2026-04-30
 
 # Example:
 #

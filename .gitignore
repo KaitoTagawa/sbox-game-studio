@@ -139,3 +139,38 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
+
+# === Engine: s&box ===
+# Build cache + cloud-imported assets (regenerate on editor launch)
+.sbox/
+
+# Compiled Source 2 outputs (any *_c file is generated from a source asset)
+*.scene_c
+*.scene_d
+*.prefab_c
+*.vmat_c
+*.vmdl_c
+*.vtex_c
+*.vsndevts_c
+*.vmap_c
+*.vsnd_c
+
+# Map packages and precomputed line-of-sight
+*.vpk
+*.los
+
+# Auto-generated .NET solutions (s&box regenerates from .sbproj)
+*.slnx
+
+# s&box compiled assembly outputs inside Code/
+**/.bin/
+**/.obj/
+
+# === Crash dumps ===
+*.stackdump
+
+# === IDE: VS Code (already partial above; ignore fully) ===
+.vscode/
+
+# === Ephemeral Session State (per docs/context-management.md) ===
+production/session-state/

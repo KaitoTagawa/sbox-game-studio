@@ -1,0 +1,271 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop" onclick=@Close></div>
+	<div class="window">
+		<div class="header">
+			<div class="title">SHOP</div>
+			<div class="wallet">$@MoneyText</div>
+			<div class="close-btn" onclick=@Close>×</div>
+		</div>
+
+		<div class="cat-tabs">
+			<div class="cat-tab @(ActiveTab == ShopTab.Furniture ? "active" : "")"
+			     onclick=@(() => SetTab( ShopTab.Furniture ))>
+				<div class="cat-tab-name">Furniture</div>
+				<div class="cat-tab-meta">@FurnitureEntries.Count items</div>
+			</div>
+			<div class="cat-tab @(ActiveTab == ShopTab.Consumable ? "active" : "")"
+			     onclick=@(() => SetTab( ShopTab.Consumable ))>
+				<div class="cat-tab-name">Consumable</div>
+				<div class="cat-tab-meta">@ConsumableEntries.Count items</div>
+			</div>
+		</div>
+
+		<div class="items">
+			@foreach ( var entry in VisibleEntries )
+			{
+				var e          = entry;
+				// Skip hidden entries (scene authoring not yet done) and
+				// locked entries entirely — the shop only shows what the
+				// player can actually buy right now.
+				if ( e.Hidden ) continue;
+				var isUnlocked = InventoryCatalogue.IsUnlocked( e.Kind );
+				if ( !isUnlocked ) continue;
+				var buyable    = Buyable( e.Kind );
+				// Skip fully-placed furniture, the already-owned Server,
+				// desks the player hasn't progressed to.
+				if ( buyable <= 0 ) continue;
+				var price      = LivePrice( e.Kind );
+				var afford     = Money >= price;
+				<div class="item @(afford ? "" : "locked")" onclick=@(() => Buy( e ))>
+					<div class="item-name">@e.Name</div>
+					<div class="item-desc">@e.Description</div>
+					<div class="item-footer">
+						<div class="price @(afford ? "" : "too-much")">$@price.ToString( "N0" )</div>
+						<div class="buy-btn">BUY</div>
+					</div>
+				</div>
+			}
+		</div>
+	</div>
+
+	@* Smoke Break warning — pops every time the player clicks BUY on the
+	   Smoke Break card. Confirms buy AND use in a single transaction so
+	   there's no separate "Use" step from the inventory afterward. *@
+	@if ( _confirmSmokeBreak )
+	{
+		<div class="confirm-backdrop" onclick=@CancelSmokeBreak></div>
+		<div class="confirm-card">
+			<div class="confirm-icon">⚠</div>
+			<div class="confirm-title">Buy Smoke Break for $@SmokeBreakPriceText?</div>
+			<div class="confirm-body">
+				<div class="confirm-lead">Skip the rest of development?</div>
+				<div class="confirm-line">Finishes the current game at 70% potential.</div>
+				<div class="confirm-line">Skips 7 in-game days.</div>
+				<div class="confirm-line">Your team earns no project XP.</div>
+				<div class="confirm-line">There's no undo.</div>
+			</div>
+			<div class="confirm-actions">
+				<div class="btn confirm-cancel" onclick=@CancelSmokeBreak>Cancel</div>
+				<div class="btn confirm-okay"   onclick=@ConfirmSmokeBreak>Okay</div>
+			</div>
+		</div>
+	}
+</root>
+
+@code {
+	private bool IsOpen => Shop.Instance?.IsOpen ?? false;
+
+	// Two-tab top-level: Furniture (everything physical) vs Consumable.
+	// Mirrors the InventoryPanel split so the player learns one tab metaphor.
+	private enum ShopTab { Furniture, Consumable }
+	private ShopTab _activeTab = ShopTab.Furniture;
+	private ShopTab ActiveTab => _activeTab;
+	private void SetTab( ShopTab t ) { _activeTab = t; }
+
+	private long Money => GameManager.Instance?.Money ?? 0;
+	private string MoneyText => Money.ToString( "N0" );
+
+	private bool CanAfford( InventoryCatalogue.Entry entry ) => Money >= LivePrice( entry.Kind );
+
+	private int  Buyable   ( ItemKind k ) => InventoryManager.Instance?.BuyableCount( k )    ?? 0;
+	private long LivePrice ( ItemKind k ) => InventoryManager.Instance?.PriceFor( k )        ?? 0;
+
+	private const int MaxStock = 5;
+
+	private IReadOnlyList<InventoryCatalogue.Entry> FurnitureEntries
+	{
+		get
+		{
+			var list = new List<InventoryCatalogue.Entry>();
+			foreach ( var e in InventoryCatalogue.All )
+				if ( e.Category.IsFurniture() ) list.Add( e );
+			return list;
+		}
+	}
+
+	private IReadOnlyList<InventoryCatalogue.Entry> ConsumableEntries
+	{
+		get
+		{
+			var list = new List<InventoryCatalogue.Entry>();
+			foreach ( var e in InventoryCatalogue.All )
+			{
+				if ( e.Category != ItemCategory.Consumable ) continue;
+				// The 3 morale-bump consumables (Chocolate Bar / Energy
+				// Drink / Protein Bar) are still being reworked — hide
+				// them from the shop until the give-to-hire buff system
+				// lands. Smoke Break is the only enabled consumable.
+				if ( !IsEnabledConsumable( e.Kind ) )         continue;
+				list.Add( e );
+			}
+			return list;
+		}
+	}
+
+	private static bool IsEnabledConsumable( ItemKind k ) => k switch
+	{
+		ItemKind.SmokeBreak => true,
+		_                   => false,
+	};
+
+	private IReadOnlyList<InventoryCatalogue.Entry> VisibleEntries
+	{
+		get
+		{
+			var baseList = ActiveTab == ShopTab.Consumable
+				? ConsumableEntries
+				: FurnitureEntries;
+
+			// Tutorial / early-game gates apply to the Furniture tab only —
+			// the items they whitelist (Bin / ChairStandard / Desk) all live
+			// there. Filtering the Consumable tab through the same
+			// "only-show-X" pass returns an empty list (the whitelisted
+			// kinds don't exist in ConsumableEntries) and made Smoke Break
+			// silently disappear during early game.
+			if ( ActiveTab == ShopTab.Consumable ) return baseList;
+
+			// Tutorial: narrow the shop to the single item the current
+			// step is asking for, matching the runtime gate in
+			// InventoryManager.TryBuy. Hiding the rest prevents a
+			// confusing "click → toast refusal" loop.
+			var tutPhase = TutorialManager.Instance?.Phase;
+			if ( tutPhase == TutorialPhase.BuyBinOnly )
+			{
+				var binOnly = new List<InventoryCatalogue.Entry>();
+				foreach ( var e in baseList )
+					if ( e.Kind == ItemKind.Bin ) binOnly.Add( e );
+				return binOnly;
+			}
+			if ( tutPhase == TutorialPhase.BuyChair )
+			{
+				var chairOnly = new List<InventoryCatalogue.Entry>();
+				foreach ( var e in baseList )
+					if ( e.Kind == ItemKind.ChairStandard ) chairOnly.Add( e );
+				return chairOnly;
+			}
+
+			// Post-tutorial onboarding gate: until the player buys their
+			// first extra desk past the starter, the shop only shows the
+			// New Desk to point them at the next critical purchase.
+			// Buying it fires the "Desk unlocked" toast in
+			// InventoryManager.TryBuy and unlocks Plants + Standard PC /
+			// Monitor / Chair (plus everything else the achievement-gated
+			// catalogue allows) the next time VisibleEntries is evaluated.
+			var inv = InventoryManager.Instance;
+			int ownedDesks = inv?.OwnedCount( ItemKind.Desk ) ?? 1;
+			if ( tutPhase == TutorialPhase.Complete && ownedDesks <= 1 )
+			{
+				var earlyOnly = new List<InventoryCatalogue.Entry>();
+				foreach ( var e in baseList )
+					if ( e.Kind == ItemKind.Desk )
+						earlyOnly.Add( e );
+				return earlyOnly;
+			}
+
+			return baseList;
+		}
+	}
+
+	private void Buy( InventoryCatalogue.Entry entry )
+	{
+		// Reject any consumable not on the enabled list — the morale-bump
+		// consumables are still being reworked; only Smoke Break (and any
+		// other entries that pass IsEnabledConsumable) are buyable.
+		if ( entry.Category == ItemCategory.Consumable
+		     && !IsEnabledConsumable( entry.Kind ) ) return;
+
+		// Smoke Break is buy-AND-use atomic — clicking BUY pops a warning
+		// confirmation before any money moves; the actual purchase + project
+		// fast-finish runs inside ConfirmSmokeBreak below. Skip the regular
+		// TryBuy path so we don't double-charge or stash a Smoke Break.
+		if ( entry.Kind == ItemKind.SmokeBreak )
+		{
+			_confirmSmokeBreak = true;
+			return;
+		}
+
+		if ( !InventoryCatalogue.IsUnlocked( entry.Kind ) ) return;
+		if ( !CanAfford( entry ) ) return;
+		InventoryManager.Instance?.TryBuy( entry.Kind );
+	}
+
+	private void Close()
+	{
+		Shop.Instance?.SetOpen( false );
+	}
+
+	// ── Smoke Break confirmation flow ────────────────────────────────────────
+	// Shop click → set the flag → modal overlay. Cancel / backdrop click
+	// drops the flag. Okay routes through TryBuyAndUseSmokeBreak which
+	// handles affordability + project state + the fast-finish atomically;
+	// failures push their own warning toast so we don't need to branch
+	// here.
+
+	private bool _confirmSmokeBreak;
+
+	private string SmokeBreakPriceText
+		=> (InventoryManager.Instance?.PriceFor( ItemKind.SmokeBreak ) ?? 0).ToString( "N0" );
+
+	private void CancelSmokeBreak()  => _confirmSmokeBreak = false;
+	private void ConfirmSmokeBreak()
+	{
+		_confirmSmokeBreak = false;
+		InventoryManager.Instance?.TryBuyAndUseSmokeBreak();
+	}
+
+	protected override int BuildHash()
+	{
+		// Re-render when modal opens/closes, money changes, owned counts shift,
+		// achievements unlock, consumable stock ticks, or a game ships
+		// (desks unlock with shipping progression).
+		var inv = InventoryManager.Instance;
+		var ownedTotal = inv?.Owned.Count ?? 0;
+		int stockSum = 0;
+		if ( inv is not null )
+		{
+			foreach ( var e in InventoryCatalogue.All )
+				if ( e.Category == ItemCategory.Consumable )
+					stockSum += inv.ConsumableStock( e.Kind );
+		}
+		var hc = new System.HashCode();
+		hc.Add( IsOpen );
+		hc.Add( Money );
+		hc.Add( ownedTotal );
+		hc.Add( Achievements.Unlocked.Count );
+		hc.Add( Achievements.GamesShipped );
+		hc.Add( stockSum );
+		hc.Add( (int)ActiveTab );
+		// Tutorial phase drives the BuyBinOnly filter — without it the
+		// shop wouldn't redraw when the tutorial advances on bin purchase.
+		hc.Add( (int)(TutorialManager.Instance?.Phase ?? TutorialPhase.Complete) );
+		// Smoke Break use counter changes its dynamic price — without
+		// this, the shop would keep showing the old sticker until reopen.
+		hc.Add( inv?.SmokeBreakUsesCount ?? 0 );
+		hc.Add( _confirmSmokeBreak );
+		return hc.ToHashCode();
+	}
+}

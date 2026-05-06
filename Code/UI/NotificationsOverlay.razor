@@ -1,0 +1,38 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+@* Standalone panel that owns the toast stack. Lives on a sibling
+   ScreenPanel at ZIndex 1000 (above every other panel including the
+   publish modal at z=400 and the tutorial overlay at ZIndex 999) so
+   warning / info / success / danger toasts always render on top of any
+   menu the player has open. pointer-events: none keeps the toasts
+   non-interactive — clicks pass through to whatever modal owns input. *@
+
+<root>
+	<div class="notifications-stack">
+		@foreach ( var toast in Toasts )
+		{
+			@* Only the attention-grabbing kinds render here. info /
+			   success toasts are non-urgent ambient signals; they live
+			   on the Hud at the normal HUD z-level (behind modals). *@
+			if ( toast.Kind != "warning" && toast.Kind != "danger" ) continue;
+			var t = toast;
+			<div class="toast toast-@t.Kind">
+				<div class="toast-title">@t.Title</div>
+				<div class="toast-text">@t.Body</div>
+			</div>
+		}
+	</div>
+</root>
+
+@code {
+	private IReadOnlyList<Notifications.Toast> Toasts => Notifications.Active;
+
+	// Re-render whenever the toast list changes. Cheap proxy: count + the
+	// freshest ShownAt (covers the case where one toast replaces another
+	// of the same count, e.g. tagged-toast swap).
+	protected override int BuildHash() => System.HashCode.Combine(
+		Toasts.Count,
+		Toasts.Count > 0 ? Toasts[0].ShownAt : 0f );
+}

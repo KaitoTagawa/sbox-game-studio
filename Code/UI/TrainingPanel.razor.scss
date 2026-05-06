@@ -1,0 +1,855 @@
+// Training modal — styled to match Shop / Settings / Gallery so the player
+// sees a consistent "full-screen overlay" treatment across every menu.
+
+TrainingPanel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	font-family: Poppins;
+	z-index: 100;
+}
+
+TrainingPanel.open {
+	pointer-events: all;
+}
+
+TrainingPanel.closed .backdrop,
+TrainingPanel.closed .window {
+	display: none;
+}
+
+.backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.55 );
+}
+
+.window {
+	position: absolute;
+	left:   12%;
+	right:  12%;
+	top:     5%;
+	bottom:  5%;
+	background-color: rgba( 18, 24, 30, 0.96 );
+	border: 2px solid rgba( 110, 220, 140, 0.5 );
+	border-radius: 14px;
+	flex-direction: column;
+	box-shadow: 0px 10px 40px 0px rgba( 0, 0, 0, 0.6 );
+}
+
+// ── Header (title + wallet + close) ──────────────────────────────────────
+
+.header {
+	flex-direction: row;
+	align-items: center;
+	padding: 18px 24px;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
+}
+
+.title {
+	flex-grow: 1;
+	color: white;
+	font-size: 26px;
+	font-weight: 700;
+	letter-spacing: 2px;
+}
+
+.wallet {
+	color: rgb( 110, 220, 140 );
+	font-size: 20px;
+	font-weight: 600;
+	margin-right: 18px;
+}
+
+.close-btn {
+	width: 36px;
+	height: 36px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border-radius: 6px;
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+}
+
+.close-btn:hover {
+	background-color: rgba( 220, 80, 80, 0.6 );
+}
+
+// ── Mode tabs (Individual / Group / Research) ────────────────────────────
+
+.mode-tabs {
+	flex-direction: row;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.06 );
+}
+
+.mode-tab {
+	flex-direction: column;
+	flex-grow: 1;
+	padding: 14px 18px;
+	cursor: pointer;
+	border-right: 1px solid rgba( 255, 255, 255, 0.04 );
+}
+
+.mode-tab:last-child {
+	border-right: 1px solid transparent;
+}
+
+.mode-tab:hover {
+	background-color: rgba( 110, 220, 140, 0.06 );
+}
+
+.mode-tab.active {
+	background-color: rgba( 110, 220, 140, 0.12 );
+	border-bottom: 2px solid rgb( 110, 220, 140 );
+}
+
+.mode-tab-name {
+	color: white;
+	font-size: 16px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.mode-tab-meta {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	margin-top: 2px;
+}
+
+// ── Body shell (alloc-hint + columns) ────────────────────────────────────
+
+.body {
+	flex-direction: column;
+	flex-grow: 1;
+	padding: 22px 28px;
+}
+
+.alloc-hint {
+	flex-direction: column;
+	color: rgba( 255, 255, 255, 0.65 );
+	font-size: 13px;
+	line-height: 1.5;
+	margin-bottom: 16px;
+}
+
+// Per-line wrapper. nowrap keeps each sentence on a single text run so
+// yoga doesn't jumble the layout when a line embeds an `@(...)` value
+// alongside literal text. See TutorialPanel for the same pattern.
+.alloc-hint-line {
+	white-space: nowrap;
+	margin-bottom: 4px;
+}
+
+.alloc-hint-line:last-child {
+	margin-bottom: 0;
+}
+
+// Time-left readout inside an in-progress research card. Single-text-run
+// child (no inline interpolations next to literal text) so yoga lays it
+// out cleanly alongside the cancel button.
+.research-topic-active-time {
+	flex-grow: 1;
+	white-space: nowrap;
+}
+
+// ── Tutorial Start Up Training CTA ───────────────────────────────────────
+// Sits above the mode columns during the tutorial's StartupTraining phase.
+// Gold accent so it reads as "this is the thing the tutorial wants you
+// to click", distinct from the regular offer cards below.
+
+.tutorial-startup {
+	flex-direction: row;
+	align-items: center;
+	gap: 16px;
+	padding: 14px 18px;
+	margin-bottom: 18px;
+	background-color: rgba( 230, 180, 60, 0.15 );
+	border: 1px solid rgba( 230, 180, 60, 0.7 );
+	border-radius: 10px;
+}
+
+.ts-icon {
+	font-size: 36px;
+	width: 44px;
+	flex-shrink: 0;
+}
+
+.ts-info {
+	flex-direction: column;
+	flex-grow: 1;
+}
+
+.ts-title {
+	color: rgb( 245, 210, 110 );
+	font-size: 16px;
+	font-weight: 800;
+	letter-spacing: 1.5px;
+}
+
+.ts-sub {
+	color: rgba( 255, 255, 255, 0.78 );
+	font-size: 13px;
+	font-weight: 500;
+	margin-top: 2px;
+}
+
+.ts-btn {
+	background-color: rgb( 230, 180, 60 );
+	color: rgb( 30, 24, 8 );
+	font-size: 13px;
+	font-weight: 800;
+	letter-spacing: 1.2px;
+	padding: 10px 20px;
+	border-radius: 8px;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.ts-btn:hover {
+	background-color: rgb( 245, 200, 80 );
+}
+
+.cols {
+	flex-direction: row;
+	gap: 16px;
+	flex-grow: 1;
+}
+
+.cols-group {
+	gap: 24px;
+}
+
+// Each column is a vertical scroll container. min-height: 0 lets it size
+// below its natural content height (yoga's default of "size to content"
+// is what compresses tiles when too many fit); overflow-y: scroll lets
+// the tiles overflow gracefully instead. Tiles inside set flex-shrink: 0
+// so they keep their natural height — the column scrolls, not the tiles.
+.col {
+	flex-direction: column;
+	background-color: rgba( 255, 255, 255, 0.03 );
+	border: 1px solid rgba( 255, 255, 255, 0.07 );
+	border-radius: 10px;
+	padding: 14px 14px;
+	gap: 8px;
+	min-height: 0;
+	overflow-y: scroll;
+}
+
+.col-staff    { width: 220px; }
+.col-stats    { width: 260px; }   // wide enough that "Programming" + value fits on one line
+.col-tiers    { flex-grow: 1; }
+.col-tiers-wide { flex-grow: 1; }
+.col-research { flex-grow: 1; }
+
+.col-title {
+	color: rgba( 255, 255, 255, 0.7 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 2px;
+	margin-bottom: 6px;
+}
+
+// ── Staff column (Individual mode) ───────────────────────────────────────
+
+.staff-card {
+	flex-direction: column;
+	flex-shrink: 0;
+	padding: 10px 12px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.07 );
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.staff-card:hover {
+	background-color: rgba( 110, 220, 140, 0.10 );
+	border-color: rgba( 110, 220, 140, 0.4 );
+}
+
+.staff-card.selected {
+	background-color: rgba( 110, 220, 140, 0.18 );
+	border-color: rgba( 110, 220, 140, 0.7 );
+}
+
+.staff-name {
+	color: white;
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.staff-sub {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 11px;
+	margin-top: 2px;
+}
+
+// ── Stat picker column ───────────────────────────────────────────────────
+
+.stat-pick {
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 12px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.07 );
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.stat-pick:hover {
+	background-color: rgba( 110, 220, 140, 0.10 );
+	border-color: rgba( 110, 220, 140, 0.4 );
+}
+
+.stat-pick.selected {
+	background-color: rgba( 110, 220, 140, 0.18 );
+	border-color: rgba( 110, 220, 140, 0.7 );
+}
+
+.stat-pick-icon {
+	font-size: 22px;
+	width: 26px;
+}
+
+.stat-pick-name {
+	color: white;
+	font-size: 14px;
+	font-weight: 700;
+	flex-grow: 1;
+}
+
+.stat-pick-val {
+	color: rgb( 110, 220, 140 );
+	font-size: 14px;
+	font-weight: 700;
+}
+
+// ── Tier cards ───────────────────────────────────────────────────────────
+
+.tier-card {
+	flex-direction: column;
+	flex-shrink: 0;
+	padding: 14px 16px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 10px;
+	cursor: pointer;
+	gap: 6px;
+	margin-bottom: 8px;
+}
+
+.tier-card:hover {
+	background-color: rgba( 110, 220, 140, 0.12 );
+	border-color: rgba( 110, 220, 140, 0.55 );
+}
+
+.tier-card.disabled {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	cursor: not-allowed;
+}
+
+.tier-card.disabled:hover {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	border-color: rgba( 255, 255, 255, 0.1 );
+}
+
+.tier-head {
+	flex-direction: row;
+	align-items: center;
+}
+
+.tier-name {
+	color: white;
+	font-size: 18px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	flex-grow: 1;
+}
+
+.tier-ticks {
+	color: rgb( 110, 220, 140 );
+	font-size: 18px;
+	font-weight: 800;
+	letter-spacing: 4px;
+}
+
+.tier-desc {
+	color: rgba( 255, 255, 255, 0.6 );
+	font-size: 12px;
+}
+
+.tier-foot {
+	flex-direction: row;
+	align-items: center;
+	margin-top: 4px;
+}
+
+.tier-cost {
+	color: rgb( 110, 220, 140 );
+	font-size: 16px;
+	font-weight: 700;
+	flex-grow: 1;
+}
+
+.tier-energy {
+	color: rgb( 235, 200, 110 );
+	font-size: 13px;
+	font-weight: 700;
+	margin-right: 12px;
+}
+
+.tier-time {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	font-weight: 600;
+}
+
+// Instant tier — amber accent so the "stays at desk, immediate gain" card
+// visually distinguishes itself from the off-site tiers.
+.tier-card.instant {
+	border-color: rgba( 235, 200, 110, 0.55 );
+}
+
+.tier-card.instant:hover {
+	background-color: rgba( 235, 200, 110, 0.12 );
+	border-color: rgba( 235, 200, 110, 0.85 );
+}
+
+// Greyed staff card when the worker is currently off-site / locked from
+// the selected mode. Keeps it clickable so the player can read their
+// return date.
+.staff-card.locked {
+	opacity: 0.55;
+}
+
+// ── Offer queue (replaces the static tier picker) ───────────────────────
+// Each offer card is a one-shot opportunity sitting in TrainingManager's
+// inbox. Tier still drives cost/duration/reward, but the offer's name
+// (e.g. "Tennis Class", "Tokyo Tour") is what the player picks from.
+
+.col-offers       { flex-grow: 1; }
+.col-offers-wide  { flex-grow: 1; }
+
+.energy {
+	color: rgb( 235, 200, 110 );
+	font-size: 18px;
+	font-weight: 700;
+	margin-right: 14px;
+}
+
+.offer-card {
+	flex-direction: column;
+	flex-shrink: 0;
+	padding: 12px 14px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 10px;
+	cursor: pointer;
+	gap: 6px;
+	margin-bottom: 8px;
+	position: relative;
+}
+
+.offer-card:hover {
+	background-color: rgba( 110, 220, 140, 0.12 );
+	border-color: rgba( 110, 220, 140, 0.55 );
+}
+
+.offer-card.disabled {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	cursor: not-allowed;
+}
+
+.offer-card.disabled:hover {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	border-color: rgba( 255, 255, 255, 0.1 );
+}
+
+// Per-tier accent on the card border so Premium reads "rare gold" at a
+// glance and Instant reads "amber on-site".
+.offer-card.tier-instant  { border-color: rgba( 235, 200, 110, 0.55 ); }
+.offer-card.tier-standard { border-color: rgba( 130, 200, 240, 0.55 ); }
+.offer-card.tier-premium  { border-color: rgba( 230, 180,  60, 0.85 ); }
+
+.offer-head {
+	flex-direction: row;
+	align-items: center;
+}
+
+.offer-name {
+	color: white;
+	font-size: 15px;
+	font-weight: 700;
+	letter-spacing: 0.4px;
+	flex-grow: 1;
+}
+
+.offer-tier-pill {
+	color: rgba( 255, 255, 255, 0.85 );
+	background-color: rgba( 255, 255, 255, 0.07 );
+	border: 1px solid rgba( 255, 255, 255, 0.15 );
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 1.2px;
+	padding: 2px 8px;
+	border-radius: 999px;
+}
+
+.offer-card.tier-premium .offer-tier-pill {
+	color: rgb( 230, 180, 60 );
+	border-color: rgba( 230, 180, 60, 0.7 );
+}
+
+.offer-card.tier-standard .offer-tier-pill {
+	color: rgb( 130, 200, 240 );
+	border-color: rgba( 130, 200, 240, 0.7 );
+}
+
+.offer-card.tier-instant .offer-tier-pill {
+	color: rgb( 235, 200, 110 );
+	border-color: rgba( 235, 200, 110, 0.7 );
+}
+
+.offer-ticks {
+	color: rgb( 110, 220, 140 );
+	font-size: 16px;
+	font-weight: 800;
+	letter-spacing: 4px;
+}
+
+// Stat block sits between the offer head and footer. Ticks stack above
+// the stat icon so the player reads "this many points → this stat" at a
+// glance. Icon updates with SelectedStat (chosen in the STAT column).
+
+.offer-stat-block {
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 6px 0 4px 0;
+}
+
+.offer-stat-icon {
+	font-size: 30px;
+	margin-top: 2px;
+}
+
+.offer-stat-label {
+	color: rgba( 255, 255, 255, 0.6 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+	margin-top: 2px;
+}
+
+.offer-foot {
+	flex-direction: row;
+	align-items: center;
+}
+
+.offer-cost {
+	color: rgb( 110, 220, 140 );
+	font-size: 15px;
+	font-weight: 700;
+	flex-grow: 1;
+}
+
+.offer-energy {
+	color: rgb( 235, 200, 110 );
+	font-size: 13px;
+	font-weight: 700;
+	margin-right: 12px;
+}
+
+.offer-time {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.offer-reject {
+	position: absolute;
+	top: 6px;
+	right: 8px;
+	width: 22px;
+	height: 22px;
+	align-items: center;
+	justify-content: center;
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 16px;
+	font-weight: 700;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.offer-reject:hover {
+	background-color: rgba( 220, 80, 80, 0.5 );
+	color: white;
+}
+
+// Mode-tab metadata uses the existing .mode-tab-meta — no change needed.
+
+// ── Research mode ────────────────────────────────────────────────────────
+
+.research-list {
+	flex-direction: column;
+	gap: 10px;
+}
+
+.research-row {
+	flex-direction: row;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 16px;
+	padding: 12px 14px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.07 );
+	border-radius: 10px;
+}
+
+.research-row.disabled {
+	opacity: 0.45;
+}
+
+.research-row-name {
+	flex-direction: column;
+	width: 280px;
+	flex-shrink: 0;
+}
+
+.research-name-text {
+	color: white;
+	font-size: 15px;
+	font-weight: 700;
+}
+
+.research-name-sub {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 11px;
+	margin-top: 3px;
+}
+
+.research-stat-grid {
+	flex-direction: row;
+	gap: 6px;
+	flex-grow: 1;
+	justify-content: flex-end;
+	align-items: center;
+}
+
+.research-stat-btn {
+	width: 44px;
+	height: 44px;
+	align-items: center;
+	justify-content: center;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.research-stat-btn:hover {
+	background-color: rgba( 110, 220, 140, 0.15 );
+	border-color: rgba( 110, 220, 140, 0.5 );
+}
+
+.research-stat-btn.active {
+	background-color: rgba( 110, 220, 140, 0.32 );
+	border-color: rgb( 110, 220, 140 );
+}
+
+.research-stat-btn.disabled {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	cursor: not-allowed;
+}
+
+.research-stat-btn.disabled:hover {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	border-color: rgba( 255, 255, 255, 0.1 );
+}
+
+.research-stat-icon {
+	font-size: 20px;
+}
+
+.research-clear {
+	height: 44px;
+	padding: 0 14px;
+	align-items: center;
+	justify-content: center;
+	background-color: rgba( 220, 80, 80, 0.15 );
+	border: 1px solid rgba( 220, 80, 80, 0.45 );
+	border-radius: 6px;
+	color: white;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	cursor: pointer;
+	margin-left: 8px;
+}
+
+.research-clear:hover {
+	background-color: rgba( 220, 80, 80, 0.35 );
+}
+
+.research-clear.disabled {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	color: rgba( 255, 255, 255, 0.3 );
+	border-color: rgba( 255, 255, 255, 0.08 );
+	cursor: not-allowed;
+}
+
+.research-clear.disabled:hover {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	border-color: rgba( 255, 255, 255, 0.08 );
+}
+
+.ph-text {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 13px;
+	line-height: 1.5;
+	padding: 12px;
+}
+
+// Headline-sized empty state for the offers list and the research tab —
+// when nothing's happening, this is the only thing the player sees in the
+// section, so the message reads as a real status, not a footnote.
+.empty-large {
+	color: rgba( 255, 255, 255, 0.45 );
+	font-size: 32px;
+	font-weight: 700;
+	letter-spacing: 3px;
+	align-items: center;
+	justify-content: center;
+	padding: 60px 20px;
+	width: 100%;
+}
+
+// ── Research-topic cards (Research tab) ─────────────────────────────────
+// One card per available topic. Click → assigns the currently-selected
+// worker (defaults to founder) to the topic. Card shows name, target
+// genre pill, description, primary-stat icon, time/energy footer, and an
+// "X is on this" overlay when someone is currently researching it.
+
+.research-topic-card {
+	flex-direction: column;
+	flex-shrink: 0;
+	gap: 6px;
+	padding: 12px 14px;
+	margin-bottom: 8px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border: 1px solid rgba( 255, 255, 255, 0.1 );
+	border-radius: 10px;
+	cursor: pointer;
+}
+
+.research-topic-card:hover {
+	background-color: rgba( 110, 220, 140, 0.12 );
+	border-color: rgba( 110, 220, 140, 0.55 );
+}
+
+.research-topic-card.disabled {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	cursor: not-allowed;
+}
+
+.research-topic-card.disabled:hover {
+	background-color: rgba( 255, 255, 255, 0.02 );
+	border-color: rgba( 255, 255, 255, 0.1 );
+}
+
+.research-topic-head {
+	flex-direction: row;
+	align-items: center;
+}
+
+.research-topic-name {
+	color: white;
+	font-size: 16px;
+	font-weight: 700;
+	flex-grow: 1;
+}
+
+.research-topic-genre {
+	color: rgb( 235, 200, 110 );
+	background-color: rgba( 235, 200, 110, 0.10 );
+	border: 1px solid rgba( 235, 200, 110, 0.6 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	padding: 2px 8px;
+	border-radius: 999px;
+}
+
+.research-topic-desc {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+.research-topic-stat {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+}
+
+.research-topic-stat-icon { font-size: 22px; }
+
+.research-topic-stat-name {
+	color: rgba( 255, 255, 255, 0.7 );
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 1.2px;
+}
+
+.research-topic-foot {
+	flex-direction: row;
+	align-items: center;
+	margin-top: 2px;
+}
+
+.research-topic-time {
+	color: rgb( 110, 220, 140 );
+	font-size: 14px;
+	font-weight: 700;
+	flex-grow: 1;
+}
+
+.research-topic-energy {
+	color: rgb( 235, 200, 110 );
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.research-topic-active {
+	flex-direction: row;
+	align-items: center;
+	margin-top: 4px;
+	padding: 6px 8px;
+	background-color: rgba( 110, 220, 140, 0.12 );
+	border: 1px solid rgba( 110, 220, 140, 0.45 );
+	border-radius: 6px;
+	color: white;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.research-cancel-mini {
+	color: rgb( 235, 110, 110 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+	margin-left: auto;
+	padding: 2px 8px;
+	border: 1px solid rgba( 235, 110, 110, 0.5 );
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.research-cancel-mini:hover {
+	background-color: rgba( 235, 110, 110, 0.25 );
+}
