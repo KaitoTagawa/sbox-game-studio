@@ -77,6 +77,9 @@ public sealed class GameMenu : Component
 		IsOpen = open;
 		if ( !open ) HoveredIndex = -1;
 		if ( open ) Shop.Instance?.SetOpen( false );
+		// Tab also closes any open chat — the menu and the chat panel both
+		// own the bottom-of-screen real estate, so they shouldn't co-exist.
+		if ( open ) EmployeeInteractor.Instance?.CloseChat();
 		GameManager.RefreshPlayerLock();
 	}
 

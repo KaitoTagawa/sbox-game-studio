@@ -356,7 +356,7 @@
           ],
           "Children": [
             {
-              "__guid": "47cdb3a5-47b3-4245-aaee-d28e8a7ad35f",
+              "__guid": "05954316-1160-4ce7-b41c-3c6819d26ab6",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - hair.loose.grey",
@@ -373,7 +373,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "06a2fe13-0089-4097-a270-6c929577c6d8",
+                  "__guid": "58dc177c-f3be-4f2c-a80f-af887de41b84",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -425,7 +425,7 @@
               "Children": []
             },
             {
-              "__guid": "50cf9097-5110-4cbf-9915-92bf87cdadec",
+              "__guid": "75f3a851-a1e2-4893-8782-68e38023cf3f",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - blue_shirt",
@@ -442,7 +442,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "8a0dc92a-b945-4d00-85e2-b6b2af201edb",
+                  "__guid": "f3ee8cde-94d1-45e2-9796-4d013b9d7016",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -494,7 +494,7 @@
               "Children": []
             },
             {
-              "__guid": "f0c89329-f128-4169-a7dc-f082df0e8c6f",
+              "__guid": "5059c32e-6eae-4e1d-af7b-96055e3022c1",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - blue_sneakers",
@@ -511,7 +511,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "7a24acaf-cf0d-421e-9920-6c4d5f8b2a61",
+                  "__guid": "4b2f336d-e6b3-400b-8521-67e705c2a908",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -563,7 +563,7 @@
               "Children": []
             },
             {
-              "__guid": "291c5351-1a06-4630-bf69-ea1ed3372ecb",
+              "__guid": "f1e99ae6-bd85-45ee-b7d2-0f6628cde9f1",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - brown_leather_jacket",
@@ -580,7 +580,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "45e3d883-acbe-416b-b2f6-252cad9b5e00",
+                  "__guid": "b2efdbf4-2f09-41eb-a8ed-ba59da2bb0a1",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -632,7 +632,7 @@
               "Children": []
             },
             {
-              "__guid": "212c69e4-5321-449b-926d-07758096ead7",
+              "__guid": "17ca949a-3f21-4a59-b2b0-4cabaeea4314",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - nerdy_glasses",
@@ -649,7 +649,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "ba04620c-8528-4db0-a740-dcc5fb8a8eac",
+                  "__guid": "984c1078-e4f7-4673-b254-2ef5cc06bcff",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -882,10 +882,7 @@
           "OnComponentFixedUpdate": null,
           "OnComponentStart": null,
           "OnComponentUpdate": null,
-          "PlayerRespawnPoint": {
-            "_type": "gameobject",
-            "go": "c1fc0d95-f21d-4026-98ea-ad2cc8055284"
-          }
+          "PlayerRespawnPoint": null
         },
         {
           "__type": "Shop",
@@ -1006,6 +1003,19 @@
             "_type": "gameobject",
             "go": "d4185ce9-6951-4406-80c1-98b71b2903f8"
           }
+        },
+        {
+          "__type": "EmployeeInteractor",
+          "__guid": "75386d6c-59a0-4900-bd47-735fe28e56b4",
+          "__enabled": true,
+          "Flags": 0,
+          "InteractRange": 100,
+          "OnComponentDestroy": null,
+          "OnComponentDisabled": null,
+          "OnComponentEnabled": null,
+          "OnComponentFixedUpdate": null,
+          "OnComponentStart": null,
+          "OnComponentUpdate": null
         }
       ],
       "Children": []
@@ -8978,19 +8988,6 @@
                       "__enabled": true,
                       "Flags": 0,
                       "Kind": "ChairStandard",
-                      "OnComponentDestroy": null,
-                      "OnComponentDisabled": null,
-                      "OnComponentEnabled": null,
-                      "OnComponentFixedUpdate": null,
-                      "OnComponentStart": null,
-                      "OnComponentUpdate": null
-                    },
-                    {
-                      "__type": "ItemVariant",
-                      "__guid": "0099c334-5b54-4135-9bd4-93aa999e1e55",
-                      "__enabled": true,
-                      "Flags": 0,
-                      "Kind": "Desk",
                       "OnComponentDestroy": null,
                       "OnComponentDisabled": null,
                       "OnComponentEnabled": null,
@@ -20362,7 +20359,7 @@
       "__version": 2,
       "Flags": 0,
       "Name": "EmployeeSpawn",
-      "Position": "-163.522461,-933.651489,0",
+      "Position": "-135.770782,-915.31781,0",
       "Rotation": "0,0,0,1",
       "Scale": "1,1,1",
       "Tags": "",
@@ -20745,24 +20742,6 @@
       ]
     },
     {
-      "__guid": "c1fc0d95-f21d-4026-98ea-ad2cc8055284",
-      "__version": 2,
-      "Flags": 0,
-      "Name": "PlayerSpawn",
-      "Position": "221.673065,-405.587769,-9.19660187",
-      "Rotation": "0,0,0,1",
-      "Scale": "1,1,1",
-      "Tags": "",
-      "Enabled": true,
-      "NetworkMode": 2,
-      "NetworkFlags": 0,
-      "NetworkOrphaned": 0,
-      "NetworkTransmit": true,
-      "OwnerTransfer": 1,
-      "Components": [],
-      "Children": []
-    },
-    {
       "__guid": "e5d49678-2043-4af9-be70-0b1fc9fac164",
       "__version": 2,
       "Flags": 0,
@@ -20984,17 +20963,12 @@
       "CustomBounds": false
     },
     "GameObjectSystems": {
-      "Sandbox.SelectionSetsSystem": {
-        "Data": {
-          "SelectionSets": []
-        }
-      },
       "Sandbox.MovieMaker.MovieRecorderSystem": {
         "DisableClientRecording": false
       },
-      "Sandbox.Clutter.ClutterGridSystem": {
-        "Storage": {
-          "$blob": "50063b86-e748-48f3-a381-a0307e39d9be"
+      "Sandbox.SelectionSetsSystem": {
+        "Data": {
+          "SelectionSets": []
         }
       }
     }

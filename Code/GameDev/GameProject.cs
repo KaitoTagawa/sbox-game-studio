@@ -73,6 +73,44 @@ public sealed class GameProject
 	public int   SoundPoints       { get; set; }
 	public int   GraphicsPoints    { get; set; }
 
+	/// Persistent pillar-points bonuses earned mid-production from accepted
+	/// employee suggestions. <see cref="GameProjectManager.AdvancePillar"/>
+	/// re-derives <see cref="DesignPoints"/> from progress × target each
+	/// tick, so without these tracker fields the +N from <see cref="GameProjectManager.AddPillarBonus"/>
+	/// would get wiped on the next tick. Added on top of the computed
+	/// points every tick AND at ship-time Snap.
+	public int   DesignBonusPoints   { get; set; }
+	public int   SoundBonusPoints    { get; set; }
+	public int   GraphicsBonusPoints { get; set; }
+
+	/// Persistent pillar-points penalties accumulated during ticks where
+	/// any contributing NPC is in <see cref="EmployeeMood.Bad"/>. Mirror
+	/// of the bonus tracker — needed because the live-ceiling model
+	/// (<c>points = progress × target + bonus</c>) silently recovers
+	/// missed ground the moment mood heals. Accumulating the per-tick
+	/// "would-have-earned at full mood" delta makes the time spent at
+	/// half strength a permanent score tax.
+	public int   DesignPenaltyPoints   { get; set; }
+	public int   SoundPenaltyPoints    { get; set; }
+	public int   GraphicsPenaltyPoints { get; set; }
+
+	/// First-time-per-production gates for the mood-event toasts. The
+	/// player gets ONE warning toast for the first frustrated NPC and ONE
+	/// info toast for the first NPC with an idea — every subsequent mood
+	/// roll in that production is silent (just the in-world FX), so the
+	/// notification stack doesn't get spammed at busy late-game studios.
+	/// Reset when a new project enters Production.
+	public bool  BadMoodToastShown    { get; set; }
+	public bool  GoodMoodToastShown   { get; set; }
+
+	/// Set true at Production-entry on the player's 2nd game so the next
+	/// eligible NPC mood-tick is forced to fire (Good and Bad respectively).
+	/// Guarantees the player sees a Good and a Bad mood event during their
+	/// second project so they learn the mood / chat mechanic exists.
+	/// Cleared by EmployeeNPC.TickMood once consumed.
+	public bool  GuaranteeGoodMoodPending { get; set; }
+	public bool  GuaranteeBadMoodPending  { get; set; }
+
 	// ── Lifecycle ───────────────────────────────────────────────────────────
 
 	public GameProjectPhase Phase { get; set; } = GameProjectPhase.Setup;

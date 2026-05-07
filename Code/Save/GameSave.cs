@@ -59,6 +59,13 @@ public sealed class TutorialSave
 	public bool           ChairBought           { get; set; } = false;
 	public bool           ChairAssigned         { get; set; } = false;
 	public TutorialPhase? LastAcknowledgedPhase { get; set; } = null;
+
+	/// True once the player has acknowledged (opened chat with the moody NPC
+	/// for) the first-ever Good-mood toast. Future Good toasts auto-expire
+	/// normally; the flag exists to keep the very first one sticky so the
+	/// player can't miss the new mechanic.
+	public bool           FirstGoodMoodToastSeen { get; set; } = false;
+	public bool           FirstBadMoodToastSeen  { get; set; } = false;
 }
 
 // ── Calendar / Economy ──────────────────────────────────────────────────
@@ -150,6 +157,8 @@ public sealed class EmployeeSave
 	public TrainingSession       ActiveTraining    { get; set; }
 	public string                ResearchTopicId   { get; set; } = "";
 	public float                 DaysIntoCurrentResearch { get; set; }
+	public int                   BadMoodImmuneUntilTotalDay { get; set; }
+	public int                   EnergyDrinkUntilTotalDay   { get; set; }
 	public int                   AppearanceSeed    { get; set; }
 	public List<Sandbox.ClothingContainer.ClothingEntry> SavedClothing    { get; set; } = new();
 }

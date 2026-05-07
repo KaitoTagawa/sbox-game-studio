@@ -42,6 +42,16 @@ public sealed class TutorialManager : Component
 	/// AssignChair. Advances to Complete.
 	[Property] public bool ChairAssigned { get; set; }
 
+	/// Set true once the player has opened chat with the NPC named in the
+	/// first-ever Good-mood toast. While false, the first Good-mood toast
+	/// pushes sticky (duration = 0) so the player can't miss it; once set,
+	/// future Good-mood toasts use the default 5s auto-expire.
+	[Property] public bool FirstGoodMoodToastSeen { get; set; }
+
+	/// Counterpart to <see cref="FirstGoodMoodToastSeen"/> for the first-ever
+	/// Bad-mood (Frustrated) toast.
+	[Property] public bool FirstBadMoodToastSeen { get; set; }
+
 	// ── Visibility helpers ──────────────────────────────────────────────────
 
 	/// True while the tutorial wants the calendar / project / applicant /
@@ -431,12 +441,14 @@ public sealed class TutorialManager : Component
 
 	public TutorialSave Save() => new()
 	{
-		Phase                 = Phase,
-		BinBought             = BinBought,
-		StartupTrainingDone   = StartupTrainingDone,
-		ChairBought           = ChairBought,
-		ChairAssigned         = ChairAssigned,
-		LastAcknowledgedPhase = LastAcknowledgedPhase,
+		Phase                  = Phase,
+		BinBought              = BinBought,
+		StartupTrainingDone    = StartupTrainingDone,
+		ChairBought            = ChairBought,
+		ChairAssigned          = ChairAssigned,
+		LastAcknowledgedPhase  = LastAcknowledgedPhase,
+		FirstGoodMoodToastSeen = FirstGoodMoodToastSeen,
+		FirstBadMoodToastSeen  = FirstBadMoodToastSeen,
 	};
 
 	public void Load( TutorialSave dto )
@@ -446,33 +458,39 @@ public sealed class TutorialManager : Component
 		if ( dto is null )
 		{
 			bool hasStaff = (HRManager.Instance?.Staff.Count ?? 0) > 0;
-			Phase                 = hasStaff ? TutorialPhase.Complete : TutorialPhase.Welcome;
-			BinBought             = false;
-			StartupTrainingDone   = false;
-			ChairBought           = false;
-			ChairAssigned         = false;
-			LastAcknowledgedPhase = hasStaff ? TutorialPhase.Complete : (TutorialPhase?)null;
+			Phase                  = hasStaff ? TutorialPhase.Complete : TutorialPhase.Welcome;
+			BinBought              = false;
+			StartupTrainingDone    = false;
+			ChairBought            = false;
+			ChairAssigned          = false;
+			LastAcknowledgedPhase  = hasStaff ? TutorialPhase.Complete : (TutorialPhase?)null;
+			FirstGoodMoodToastSeen = false;
+			FirstBadMoodToastSeen  = false;
 			return;
 		}
 
-		Phase                 = dto.Phase;
-		BinBought             = dto.BinBought;
-		StartupTrainingDone   = dto.StartupTrainingDone;
-		ChairBought           = dto.ChairBought;
-		ChairAssigned         = dto.ChairAssigned;
-		LastAcknowledgedPhase = dto.LastAcknowledgedPhase;
+		Phase                  = dto.Phase;
+		BinBought              = dto.BinBought;
+		StartupTrainingDone    = dto.StartupTrainingDone;
+		ChairBought            = dto.ChairBought;
+		ChairAssigned          = dto.ChairAssigned;
+		LastAcknowledgedPhase  = dto.LastAcknowledgedPhase;
+		FirstGoodMoodToastSeen = dto.FirstGoodMoodToastSeen;
+		FirstBadMoodToastSeen  = dto.FirstBadMoodToastSeen;
 	}
 
 	/// Renamed from Reset() so it doesn't shadow Component.Reset(), which
 	/// the engine calls on its own schedule. Same pattern as Gallery.
 	public void ResetProgress()
 	{
-		Phase                 = TutorialPhase.Welcome;
-		BinBought             = false;
-		StartupTrainingDone   = false;
-		ChairBought           = false;
-		ChairAssigned         = false;
-		LastAcknowledgedPhase = null;
+		Phase                  = TutorialPhase.Welcome;
+		BinBought              = false;
+		StartupTrainingDone    = false;
+		ChairBought            = false;
+		ChairAssigned          = false;
+		LastAcknowledgedPhase  = null;
+		FirstGoodMoodToastSeen = false;
+		FirstBadMoodToastSeen  = false;
 		Log.Info( $"[Tutorial] ResetProgress — Phase=Welcome. IsAnyModalVisible={IsAnyModalVisible}." );
 	}
 }

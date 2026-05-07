@@ -337,7 +337,10 @@ public sealed class GameManager : Component
 		           // Tutorial modals — same input lock as the others so the
 		           // player can't run around / pick up the cursor while any
 		           // tutorial step (Welcome / CreateAndBin / Complete) is up.
-		           || (TutorialManager.Instance?.IsAnyModalVisible ?? false);
+		           || (TutorialManager.Instance?.IsAnyModalVisible ?? false)
+		           // Employee chat panel — cursor must be unlocked so the
+		           // reply buttons receive clicks. Mirrors the other modals.
+		           || (EmployeeInteractor.Instance?.IsChatting ?? false);
 
 		var player = Scene.GetAllComponents<Sandbox.PlayerController>().FirstOrDefault();
 		if ( player is not null )
@@ -347,14 +350,20 @@ public sealed class GameManager : Component
 
 			// UseInputControls=false stops new movement input from being read,
 			// but the controller can keep coasting on a non-zero WishVelocity
-			// (and the rigidbody on residual momentum) — so the founder is
-			// visibly still walking through the menu. Zeroing both freezes the
-			// player the moment any modal opens.
+			// (and the rigidbody on residual horizontal momentum) — so the
+			// founder is visibly still walking through the menu. Zero
+			// horizontal axes only, every frame: vertical (Z) is left alone
+			// so a player who opens a menu mid-air keeps falling at the
+			// normal gravity rate instead of getting their fall velocity
+			// reset to 0 every frame (which produced a slow descent).
 			if ( anyOpen )
 			{
 				player.WishVelocity = Vector3.Zero;
 				if ( player.Body is not null )
-					player.Body.Velocity = Vector3.Zero;
+				{
+					var v = player.Body.Velocity;
+					player.Body.Velocity = new Vector3( 0f, 0f, v.z );
+				}
 			}
 		}
 

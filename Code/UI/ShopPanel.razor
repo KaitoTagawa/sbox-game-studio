@@ -60,7 +60,7 @@
 		<div class="confirm-backdrop" onclick=@CancelSmokeBreak></div>
 		<div class="confirm-card">
 			<div class="confirm-icon">⚠</div>
-			<div class="confirm-title">Buy Smoke Break for $@SmokeBreakPriceText?</div>
+			<div class="confirm-title">Outsource everything for $@SmokeBreakPriceText?</div>
 			<div class="confirm-body">
 				<div class="confirm-lead">Skip the rest of development?</div>
 				<div class="confirm-line">Finishes the current game at 70% potential.</div>
@@ -128,8 +128,10 @@
 
 	private static bool IsEnabledConsumable( ItemKind k ) => k switch
 	{
-		ItemKind.SmokeBreak => true,
-		_                   => false,
+		ItemKind.SmokeBreak  => true,
+		ItemKind.ChewingGum  => true,
+		ItemKind.EnergyDrink => true,
+		_                    => false,
 	};
 
 	private IReadOnlyList<InventoryCatalogue.Entry> VisibleEntries

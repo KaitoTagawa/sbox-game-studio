@@ -168,7 +168,7 @@ public static class PlayerReviewGenerator
 	/// twice with the same input returns identical content (seeded by the
 	/// game's Title + ship date).
 	/// </summary>
-	public static IReadOnlyList<PlayerReview> GenerateForGame( ShippedGame game, int count = 12 )
+	public static IReadOnlyList<PlayerReview> GenerateForGame( ShippedGame game, int count = 5 )
 	{
 		if ( game is null || count <= 0 ) return Array.Empty<PlayerReview>();
 

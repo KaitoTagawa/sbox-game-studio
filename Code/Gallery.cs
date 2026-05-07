@@ -325,15 +325,19 @@ public sealed class Gallery : Component
 
 		// Pillar multipliers anchor at 1.0 (so the BasePlayers / BaseSessions /
 		// BaseMinutes literally describe a zero-pillar baseline) and scale up
-		// to 6× when a pillar weight maxes at 1.0.
-		float playerMult  = 1f + 5f * playerWeight;
-		float sessionMult = 1f + 5f * sessionWeight;
-		float minuteMult  = 1f + 5f * minuteWeight;
+		// to 4× when a pillar weight maxes at 1.0. Coefficient was previously 5
+		// (1..6×) — flattened to keep great games from snowballing too hard
+		// when all three mults compound through players × sessions × minutes.
+		float playerMult  = 1f + 3f * playerWeight;
+		float sessionMult = 1f + 3f * sessionWeight;
+		float minuteMult  = 1f + 3f * minuteWeight;
 
-		// Review modifiers: PlayerCount gets the explosive quadratic-ish curve
-		// (great reviews drive massive sales); SessionsPerPlayer + AvgSessionMinutes
-		// get a gentler linear bump (good games are slightly stickier per player).
-		float revPlayerBoost = 1f + (5f * R) * (5f * R);   // 1..26
+		// Review modifiers: PlayerCount gets a concave (sqrt) curve so great
+		// reviews still meaningfully outsell mid ones, but a 100-score game
+		// doesn't end the run. Was previously (5R)² → 1..26; sqrt → 1..10.
+		// SessionsPerPlayer + AvgSessionMinutes get a gentler linear bump
+		// (good games are slightly stickier per player, not dramatically more).
+		float revPlayerBoost = 1f + 9f * MathF.Sqrt( R );   // 1..10
 		float revQualityMod  = 1f + 0.5f * R;              // 1..1.5
 
 		float genreRev  = GameGenres.TotalRevenue( game.Genres );

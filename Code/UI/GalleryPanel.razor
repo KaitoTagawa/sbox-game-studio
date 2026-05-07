@@ -486,11 +486,13 @@
 		Gallery.Instance?.ToggleReviews( g );
 
 	/// Cached per-game review list — generation is deterministic so the
-	/// instance only matters for layout stability between renders. We keep
-	/// the cache keyed by ShippedGame ref so two ships with identical
-	/// titles still get distinct lists.
+	/// instance only matters for layout stability between renders. Keyed
+	/// by ShippedGame REFERENCE (ReferenceEqualityComparer) — without this,
+	/// the record's value-equality + mutating fields (RevenueEarned, sales
+	/// counters) make hash codes shift every sales tick, breaking lookups
+	/// and triggering hotload key collisions on the static dict.
 	private static readonly System.Collections.Generic.Dictionary<ShippedGame, System.Collections.Generic.IReadOnlyList<PlayerReview>> _reviewCache
-		= new();
+		= new( System.Collections.Generic.ReferenceEqualityComparer.Instance );
 
 	private System.Collections.Generic.IReadOnlyList<PlayerReview> ReviewsFor( ShippedGame g )
 	{

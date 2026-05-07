@@ -59,13 +59,14 @@ public static class TrainingTiers
 
 	public static readonly IReadOnlyList<Info> All = new Info[]
 	{
-		// Stat-gain values 3× the original baseline (2026-05-02). Reasoning:
-		// training is *consumed* — when a hire leaves, all the XP they
-		// accumulated walks out the door, unlike furniture which keeps
-		// inspiring the next person to sit at that desk. Training also
-		// costs both money AND energy, while items only cost money. The 3×
-		// uplift makes a single training session economically meaningful
-		// against the risk of the trained worker quitting.
+		// Stat-gain values 6× the original baseline (3× on 2026-05-02, doubled
+		// again on 2026-05-07 alongside a 2× pass on furniture StatBoost).
+		// Reasoning: training is *consumed* — when a hire leaves, all the XP
+		// they accumulated walks out the door, unlike furniture which keeps
+		// inspiring the next person to sit at that desk. Training also costs
+		// both money AND energy, while items only cost money. The 6× uplift
+		// makes a single training session economically meaningful against
+		// the risk of the trained worker quitting.
 		new()
 		{
 			Tier                 = TrainingTier.Instant,
@@ -75,7 +76,7 @@ public static class TrainingTiers
 			IndividualEnergyCost = 5,
 			DurationDays         = 0,
 			RewardTicks          = 1,
-			RewardStatGain       = 6,
+			RewardStatGain       = 12,
 		},
 		new()
 		{
@@ -86,7 +87,7 @@ public static class TrainingTiers
 			IndividualEnergyCost = 3,
 			DurationDays         = 3,
 			RewardTicks          = 1,
-			RewardStatGain       = 15,
+			RewardStatGain       = 30,
 		},
 		new()
 		{
@@ -97,7 +98,7 @@ public static class TrainingTiers
 			IndividualEnergyCost = 6,
 			DurationDays         = 7,
 			RewardTicks          = 2,
-			RewardStatGain       = 30,
+			RewardStatGain       = 60,
 		},
 		new()
 		{
@@ -108,7 +109,7 @@ public static class TrainingTiers
 			IndividualEnergyCost = 10,
 			DurationDays         = 14,
 			RewardTicks          = 4,
-			RewardStatGain       = 60,
+			RewardStatGain       = 120,
 		},
 	};
 

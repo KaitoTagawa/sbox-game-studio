@@ -53,15 +53,15 @@
 			</div>
 		}
 
-		@* Hud renders info / success (ambient) toasts on the normal HUD
-		   layer — behind modals, same as the calendar/money pills. The
-		   attention-grabbing warning / danger toasts render through
-		   NotificationsOverlay (ZIndex 1000) so they pop on top of any
+		@* Hud renders info / success / danger toasts in one stack so the
+		   "Frustrated" red toast appears next to the "Idea!" blue toast.
+		   Only "warning" still routes through NotificationsOverlay (ZIndex
+		   1000) so genuinely-blocking failure messages pop on top of any
 		   open menu. Filter mirrors NotificationsOverlay's. *@
 		<div class="hud-notifications">
 			@foreach ( var toast in Toasts )
 			{
-				if ( toast.Kind == "warning" || toast.Kind == "danger" ) continue;
+				if ( toast.Kind == "warning" ) continue;
 				var t = toast;
 				<div class="toast toast-@t.Kind">
 					<div class="toast-title">@t.Title</div>
@@ -70,6 +70,50 @@
 			}
 		</div>
 	</div>
+
+	@* Center-screen interact prompt — only visible when an employee is in
+	   range, no modal is open, and the player isn't already chatting
+	   (EmployeeInteractor handles the gating). *@
+	@if ( InteractTargetName is { } targetName )
+	{
+		<div class="interact-prompt">
+			<div class="interact-key">E</div>
+			<div class="interact-text">Talk to @targetName</div>
+		</div>
+	}
+
+	@* Bottom-of-screen chat panel — visible while EmployeeInteractor.IsChatting.
+	   The cursor is unlocked while this is open (GameManager treats it as a
+	   modal), so reply buttons receive clicks normally. *@
+	@if ( ChatTarget is { } target )
+	{
+		<div class="chat-panel">
+			<div class="chat-header">
+				<div class="chat-name">@target.EmployeeName</div>
+				<div class="chat-role">@RoleLabel( target.Role )</div>
+				<div class="chat-close" onclick=@CloseChat>×</div>
+			</div>
+			<div class="chat-line">@ChatLine</div>
+			@* Reply list — driven by EmployeeInteractor.Instance.ReplyOptions
+			   so the keyboard-nav handler and the Razor button list stay in
+			   sync. ReplyOptions is now an instance getter (not static)
+			   because the set is mood-dependent — Good mood swaps in
+			   Accept / Maybe later for the default chat replies. *@
+			<div class="chat-replies">
+				@{ var replies = EmployeeInteractor.Instance?.ReplyOptions; }
+				@if ( replies is not null )
+				{
+					@for ( int i = 0; i < replies.Count; i++ )
+					{
+						var idx     = i;
+						var option  = replies[idx];
+						var classes = idx == ChatSelectedIndex ? "chat-reply selected" : "chat-reply";
+						<div class="@classes" onclick=@(() => ClickReply(idx))>@option.Label</div>
+					}
+				}
+			</div>
+		</div>
+	}
 </root>
 
 @code {
@@ -83,6 +127,53 @@
 	private string DisplayMoney => Money.ToString( "N0" );
 
 	private IReadOnlyList<Notifications.Toast> Toasts => Notifications.Active;
+
+	/// Name of the NPC currently in interaction range, or null when no
+	/// employee is greetable OR the player is already chatting (the chat
+	/// panel makes the prompt redundant). Drives the centered prompt.
+	private string InteractTargetName
+	{
+		get
+		{
+			var ix = EmployeeInteractor.Instance;
+			if ( ix is null || ix.IsChatting ) return null;
+			return ix.NearestEmployee?.EmployeeName;
+		}
+	}
+
+	// ── Chat panel state — read-through to EmployeeInteractor ─────────────────
+
+	private EmployeeNPC ChatTarget         => EmployeeInteractor.Instance?.ChatTarget;
+	private string      ChatLine           => EmployeeInteractor.Instance?.ChatLine;
+	private int         ChatSelectedIndex  => EmployeeInteractor.Instance?.SelectedReplyIndex ?? 0;
+
+	/// Click handler for a reply tile — also moves the keyboard selection
+	/// to the clicked index, then runs that reply's action (NPC response
+	/// for chat options, panel close for the exit entry).
+	private void ClickReply( int index )
+	{
+		var ix = EmployeeInteractor.Instance;
+		if ( ix is null ) return;
+		ix.SelectReply( index );
+		ix.ConfirmSelected();
+	}
+
+	private void CloseChat()
+	{
+		EmployeeInteractor.Instance?.CloseChat();
+	}
+
+	private static string RoleLabel( EmployeeRole role ) => role switch
+	{
+		EmployeeRole.Programmer    => "PROGRAMMER",
+		EmployeeRole.Designer      => "DESIGNER",
+		EmployeeRole.Creative      => "CREATIVE",
+		EmployeeRole.Artist        => "ARTIST",
+		EmployeeRole.SoundDesigner => "SOUND",
+		EmployeeRole.Researcher    => "RESEARCH",
+		EmployeeRole.Founder       => "FOUNDER",
+		_                          => "",
+	};
 
 	// ── In-flight project widget ─────────────────────────────────────────────
 	// Shown only while a project is actually in Production. Setup phase is
@@ -150,5 +241,10 @@
 			// burst-rebuilding every frame; pts ticks on its own integer cadence.
 			(int)(OverallProgress * 100f),
 			TotalPoints,
-			IsFinished );
+			IsFinished,
+			System.HashCode.Combine(
+				InteractTargetName,
+				ChatTarget?.EmployeeName,
+				ChatLine,
+				ChatSelectedIndex ) );
 }

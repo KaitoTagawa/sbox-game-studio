@@ -263,6 +263,8 @@ public sealed class HRManager : Component
 
 	readonly Random _rng = new();
 
+	bool _wardrobePrewarmed;
+
 	// ── Lifecycle ────────────────────────────────────────────────────────────
 
 	protected override void OnAwake()
@@ -301,6 +303,46 @@ public sealed class HRManager : Component
 		// save-load and restart flows both call SeedTutorialApplicant which
 		// guards on Count == 0).
 		SeedTutorialApplicant();
+
+		// Force the citizen wardrobe (models + materials + textures used by
+		// Sandbox.Dresser.Randomize) into the resource cache during scene boot
+		// so the first real hire doesn't pay the synchronous load cost
+		// mid-gameplay (was producing a ~500ms SceneSystem job-wait).
+		PrewarmWardrobe();
+	}
+
+	/// Sandbox.Dresser.Randomize() synchronously loads the citizen wardrobe
+	/// the first time it runs in a session. If that lands on a hire frame the
+	/// SceneSystem stalls waiting for asset jobs (visible as a multi-hundred-ms
+	/// hitch). We absorb the cost here, at scene start, by cloning the citizen
+	/// prefab once below the world, randomizing its Dresser, and immediately
+	/// destroying the clone — the loaded assets stay cached for the rest of
+	/// the run, so every real hire's Randomize hits warm cache.
+	void PrewarmWardrobe()
+	{
+		if ( _wardrobePrewarmed ) return;
+		if ( EmployeeNpcPrefab is null ) return;
+		_wardrobePrewarmed = true;
+
+		// Far below the floor — never seen, never collides with anything.
+		var go = EmployeeNpcPrefab.Clone(
+			new Vector3( 0f, 0f, -100000f ), Rotation.Identity );
+
+		var dresser = go.Components.Get<Sandbox.Dresser>();
+		if ( dresser is not null )
+		{
+			// Neutral sliders — the body shape doesn't matter, we just need
+			// Randomize to walk the wardrobe and load every clothing asset.
+			dresser.ManualAge    = 0.5f;
+			dresser.ManualHeight = 0.5f;
+			dresser.ManualTint   = 0.5f;
+			dresser.Randomize();
+		}
+
+		// Randomize is synchronous (that synchronicity is the whole reason
+		// it hitches at hire time). Once it returns the wardrobe is cached;
+		// the throwaway clone has done its job.
+		go.Destroy();
 	}
 
 	/// Drop one guaranteed-strong applicant into the inbox: flat 300 stats,
@@ -848,8 +890,17 @@ public sealed class HRManager : Component
 	}
 
 	/// Discard an applicant from the inbox without interviewing them.
+	/// Tutorial hires can't be rejected — the player has to interview and
+	/// hire them to clear the first-hire gate. Mirrors PassOnInterviewSubject.
 	public void Reject( Employee applicant )
 	{
+		if ( applicant?.IsTutorialHire == true )
+		{
+			Notifications.Push( "First hire required",
+				$"You have to hire {applicant.Name} — they're your starting teammate.",
+				"warning" );
+			return;
+		}
 		_applicants.Remove( applicant );
 	}
 
@@ -934,8 +985,10 @@ public sealed class HRManager : Component
 		Vector3  cloneAtPos = EmployeeSpawnPoint?.WorldPosition ?? deskPos;
 		Rotation cloneAtRot = EmployeeSpawnPoint?.WorldRotation ?? deskRot;
 
-		var go  = EmployeeNpcPrefab.Clone( cloneAtPos, cloneAtRot );
-		var npc = go.Components.Get<EmployeeNPC>();
+		var hireT0 = RealTime.Now;
+		var go      = EmployeeNpcPrefab.Clone( cloneAtPos, cloneAtRot );
+		var cloneMs = (RealTime.Now - hireT0) * 1000f;
+		var npc     = go.Components.Get<EmployeeNPC>();
 		if ( npc is null )
 		{
 			go.Destroy();
@@ -946,11 +999,19 @@ public sealed class HRManager : Component
 
 		InterviewSubject.DeskSlotId = deskSlotId;
 		npc.Assign( InterviewSubject, deskPos, deskRot );
+		var assignMs = (RealTime.Now - hireT0) * 1000f;
+		Log.Info( $"[HR-DEBUG] Hire {npc.EmployeeName}: Clone {cloneMs:F1}ms · Clone+Assign {assignMs:F1}ms" );
+		// Stamp the start time on the NPC so the deferred Randomize block in
+		// EmployeeNPC.OnUpdate can log the wall-clock spawn-to-ready elapsed
+		// once the wardrobe finishes loading on the next frame.
+		npc._spawnDebugStartTime = hireT0;
 		// Stamp the day-of-month so this hire's payday is their anniversary,
 		// not Day 1 of every month. Falls back to 1 if GameManager is missing
 		// (defensive — the modal can't open without one in a healthy scene).
-		npc.HireDay        = GameManager.Instance?.Day ?? 1;
-		npc.SkipFirstSalary = true;
+		// First salary lands on the very next anniversary (= 30 in-game days
+		// after hire, since months are 30 days). SkipFirstSalary stays false
+		// so PaySalaries charges normally on the first anniversary tick.
+		npc.HireDay = GameManager.Instance?.Day ?? 1;
 		_staff.Add( npc );
 
 		// First-launch tutorial: completing this hire ends the tutorial,
@@ -1107,6 +1168,8 @@ public sealed class HRManager : Component
 		ActiveTraining          = npc.ActiveTraining,
 		ResearchTopicId         = npc.ResearchTopicId,
 		DaysIntoCurrentResearch = npc.DaysIntoCurrentResearch,
+		BadMoodImmuneUntilTotalDay = npc.BadMoodImmuneUntilTotalDay,
+		EnergyDrinkUntilTotalDay   = npc.EnergyDrinkUntilTotalDay,
 		AppearanceSeed          = npc.AppearanceSeed,
 		SavedClothing           = new List<Sandbox.ClothingContainer.ClothingEntry>( npc.SavedClothing ?? new List<Sandbox.ClothingContainer.ClothingEntry>() ),
 	};
@@ -1232,6 +1295,8 @@ public sealed class HRManager : Component
 		npc.ActiveTraining          = save.ActiveTraining;
 		npc.ResearchTopicId         = save.ResearchTopicId ?? "";
 		npc.DaysIntoCurrentResearch = save.DaysIntoCurrentResearch;
+		npc.BadMoodImmuneUntilTotalDay = save.BadMoodImmuneUntilTotalDay;
+		npc.EnergyDrinkUntilTotalDay   = save.EnergyDrinkUntilTotalDay;
 
 		_staff.Add( npc );
 	}

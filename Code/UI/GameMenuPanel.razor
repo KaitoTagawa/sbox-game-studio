@@ -93,7 +93,10 @@
 										<div class="btn interview" onclick=@(() => Interview( applicant ))>
 											Interview <span class="energy-tag">@cost⚡</span>
 										</div>
-										<div class="btn reject" onclick=@(() => Reject( applicant ))>×</div>
+										@if ( !applicant.IsTutorialHire )
+										{
+											<div class="btn reject" onclick=@(() => Reject( applicant ))>×</div>
+										}
 									</div>
 								}
 							}

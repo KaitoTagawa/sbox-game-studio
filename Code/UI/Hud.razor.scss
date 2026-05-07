@@ -263,3 +263,166 @@ Hud {
 	font-weight: 500;
 }
 
+// ── Interact prompt (screen-center, "Press E to talk") ──────────────────
+// Pill-styled to match the calendar/money pills, with the keycap inset on
+// the left. Visible only when EmployeeInteractor.NearestEmployee is non-null
+// AND the player isn't already chatting — the Razor gates the whole element.
+
+.interact-prompt {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	margin-top: 140px;
+	margin-left: -210px;
+	width: 420px;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	gap: 14px;
+	padding: 14px 22px;
+	background-color: rgba( 15, 20, 25, 0.82 );
+	border: 2px solid rgba( 120, 180, 255, 0.8 );
+	border-radius: 12px;
+	box-shadow: 0px 4px 22px 0px rgba( 0, 0, 0, 0.5 );
+}
+
+.interact-key {
+	width: 38px;
+	height: 38px;
+	align-items: center;
+	justify-content: center;
+	font-size: 22px;
+	font-weight: 800;
+	color: rgb( 140, 190, 255 );
+	background-color: rgba( 30, 50, 80, 0.9 );
+	border: 2px solid rgba( 140, 190, 255, 0.7 );
+	border-radius: 6px;
+}
+
+.interact-text {
+	color: white;
+	font-size: 22px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+	// nowrap: yoga clipping fix (same as .chat-line) — also prevents
+	// "Talk to Firstname Lastname" from breaking onto a second row
+	// when the name is long. Width is sized for typical 2-word names.
+	white-space: nowrap;
+}
+
+// ── Chat panel (bottom-of-screen, NPC line + reply buttons) ──────────────
+// Visible while EmployeeInteractor.IsChatting. The cursor is unlocked while
+// open (GameManager treats it as a modal), so reply buttons receive clicks.
+// pointer-events: all on the panel + buttons since Hud root sets it to none
+// (matches the pattern used by every other interactive panel in the project).
+
+.chat-panel {
+	position: absolute;
+	bottom: 48px;
+	left: 50%;
+	margin-left: -360px;
+	width: 720px;
+	flex-direction: column;
+	gap: 14px;
+	padding: 22px 28px 24px 28px;
+	background-color: rgba( 15, 20, 25, 0.92 );
+	border: 2px solid rgba( 120, 180, 255, 0.8 );
+	border-radius: 14px;
+	box-shadow: 0px 6px 28px 0px rgba( 0, 0, 0, 0.6 );
+	pointer-events: all;
+}
+
+.chat-header {
+	flex-direction: row;
+	align-items: center;
+	gap: 14px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.12 );
+}
+
+.chat-name {
+	color: white;
+	font-size: 24px;
+	font-weight: 700;
+	letter-spacing: 0.3px;
+	flex-grow: 1;
+	// nowrap: yoga miscalculates row height when text wraps in a flex
+	// row, which clipped sibling rows below. Names are short anyway.
+	white-space: nowrap;
+}
+
+.chat-role {
+	color: rgba( 140, 190, 255, 0.85 );
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 1.2px;
+	padding: 4px 10px;
+	background-color: rgba( 30, 50, 80, 0.8 );
+	border-radius: 4px;
+}
+
+.chat-close {
+	width: 32px;
+	height: 32px;
+	align-items: center;
+	justify-content: center;
+	font-size: 24px;
+	font-weight: 700;
+	color: rgba( 255, 255, 255, 0.55 );
+	border-radius: 6px;
+	cursor: pointer;
+
+	&:hover {
+		color: white;
+		background-color: rgba( 255, 255, 255, 0.08 );
+	}
+}
+
+.chat-line {
+	color: white;
+	font-size: 22px;
+	font-weight: 500;
+	padding: 14px 4px 14px 4px;
+	// nowrap: yoga clips wrapped text against neighbouring flex children
+	// (header above, replies below) — confirmed bug, mirrors the fix at
+	// TutorialPanel.razor.scss:88. Greetings/responses are written short.
+	white-space: nowrap;
+}
+
+.chat-replies {
+	flex-direction: column;
+	gap: 8px;
+}
+
+.chat-reply {
+	padding: 12px 18px;
+	background-color: rgba( 30, 50, 80, 0.55 );
+	border: 1px solid rgba( 120, 180, 255, 0.4 );
+	border-radius: 8px;
+	color: rgba( 220, 235, 255, 0.92 );
+	font-size: 19px;
+	font-weight: 500;
+	cursor: pointer;
+	pointer-events: all;
+	// nowrap: same yoga clipping fix as .chat-line. Reply lines are
+	// short enough to fit at the 720px panel width.
+	white-space: nowrap;
+
+	&:hover {
+		background-color: rgba( 50, 90, 140, 0.75 );
+		border-color: rgba( 140, 190, 255, 0.85 );
+		color: white;
+	}
+}
+
+// Keyboard-selected reply — driven by EmployeeInteractor.SelectedReplyIndex
+// (W / S / up / down nav, E confirms). Stronger border + brighter background
+// than hover so the player can always see which row is active without
+// moving the mouse.
+.chat-reply.selected {
+	background-color: rgba( 60, 110, 170, 0.85 );
+	border-color: rgba( 160, 210, 255, 1.0 );
+	color: white;
+	box-shadow: 0px 0px 12px 0px rgba( 140, 190, 255, 0.45 );
+}
+

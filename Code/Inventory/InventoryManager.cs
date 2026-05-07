@@ -65,6 +65,13 @@ public sealed class InventoryManager : Component
 	const float MinRestockSeconds  = 60f;
 	const float MaxRestockSeconds  = 180f;
 
+	// Chewing Gum is a special-cased consumable: bigger cap and a monthly
+	// batch restock (instead of the random-timer +1 path). +6 per in-game
+	// month, hard-clamped at <see cref="ChewingGumMaxStock"/>. Subscribed
+	// in OnAwake; unsubscribed in OnDestroy.
+	const int ChewingGumMaxStock        = 8;
+	const int ChewingGumMonthlyRestock  = 6;
+
 	readonly Dictionary<ItemKind, int>   _consumableStock         = new();
 	readonly Dictionary<ItemKind, float> _consumableRestockTimers = new();
 	readonly System.Random               _rng                      = new();
@@ -90,6 +97,16 @@ public sealed class InventoryManager : Component
 	/// Current shop stock for a consumable. Returns 0 for non-consumable kinds.
 	public int ConsumableStock( ItemKind kind )
 		=> _consumableStock.TryGetValue( kind, out var n ) ? n : 0;
+
+	/// Per-kind shop-stock ceiling. Most consumables share the default
+	/// <see cref="MaxConsumableStock"/> (5); ChewingGum opts into a higher
+	/// 8-slot cap to pair with its monthly batch restock. Add new entries
+	/// here when a consumable needs a custom cap.
+	public static int MaxStockFor( ItemKind kind ) => kind switch
+	{
+		ItemKind.ChewingGum => ChewingGumMaxStock,
+		_                   => MaxConsumableStock,
+	};
 
 	// ── Scene slots ──────────────────────────────────────────────────────────
 
@@ -121,16 +138,21 @@ public sealed class InventoryManager : Component
 			Log.Info( "[Inv] Seeded starter Desk." );
 		}
 
-		// Seed each consumable's shop stock at full (5). Save load will
-		// overwrite with the persisted values; fresh studios get a full
-		// shelf to start so the first relationship interaction can buy
-		// without waiting on a restock timer.
+		// Seed each consumable's shop stock at its per-kind cap. Save load
+		// will overwrite with the persisted values; fresh studios get a
+		// full shelf to start so the first relationship interaction can
+		// buy without waiting on a restock timer.
 		foreach ( var entry in InventoryCatalogue.All )
 		{
 			if ( entry.Category != ItemCategory.Consumable ) continue;
-			_consumableStock[entry.Kind]         = MaxConsumableStock;
+			_consumableStock[entry.Kind]         = MaxStockFor( entry.Kind );
 			_consumableRestockTimers[entry.Kind] = NextRestockInterval();
 		}
+
+		// ChewingGum opts out of the per-kind random-timer +1 restock and
+		// gets a monthly batch top-up instead. Subscription mirrors HRManager's
+		// month-tick pattern.
+		GameManager.OnMonthStart += RestockChewingGumMonthly;
 	}
 
 	float NextRestockInterval()
@@ -159,6 +181,7 @@ public sealed class InventoryManager : Component
 
 	protected override void OnDestroy()
 	{
+		GameManager.OnMonthStart -= RestockChewingGumMonthly;
 		if ( Instance == this ) Instance = null;
 	}
 
@@ -202,16 +225,20 @@ public sealed class InventoryManager : Component
 	}
 
 	/// Tick each consumable's restock countdown. Each timer expiring adds
-	/// one to that kind's stock (capped at <see cref="MaxConsumableStock"/>)
+	/// one to that kind's stock (capped at the per-kind <see cref="MaxStockFor"/>)
 	/// and rolls a fresh random interval. Silent — no notification per
-	/// design intent.
+	/// design intent. ChewingGum is excluded — it uses the monthly batch
+	/// path in <see cref="RestockChewingGumMonthly"/> instead.
 	void TickConsumableRestocks()
 	{
 		// Snapshot keys: the dictionary is mutated below, can't enumerate live.
 		var keys = _consumableStock.Keys.ToList();
 		foreach ( var kind in keys )
 		{
-			if ( _consumableStock[kind] >= MaxConsumableStock ) continue;
+			if ( kind == ItemKind.ChewingGum ) continue;
+
+			var cap = MaxStockFor( kind );
+			if ( _consumableStock[kind] >= cap ) continue;
 			_consumableRestockTimers.TryGetValue( kind, out var t );
 			t -= Time.Delta;
 			if ( t > 0 )
@@ -222,6 +249,18 @@ public sealed class InventoryManager : Component
 			_consumableStock[kind]++;
 			_consumableRestockTimers[kind] = NextRestockInterval();
 		}
+	}
+
+	/// Top up Chewing Gum stock by <see cref="ChewingGumMonthlyRestock"/> at
+	/// the start of every in-game month, hard-clamped at
+	/// <see cref="ChewingGumMaxStock"/>. Wired to <c>GameManager.OnMonthStart</c>
+	/// in <see cref="OnAwake"/>; silent like the random-timer path.
+	void RestockChewingGumMonthly()
+	{
+		var current = ConsumableStock( ItemKind.ChewingGum );
+		var cap     = MaxStockFor( ItemKind.ChewingGum );
+		var topped  = System.Math.Min( cap, current + ChewingGumMonthlyRestock );
+		_consumableStock[ItemKind.ChewingGum] = topped;
 	}
 
 	// ── Slot discovery ───────────────────────────────────────────────────────
@@ -323,8 +362,14 @@ public sealed class InventoryManager : Component
 	/// current bind state.
 	///
 	/// Workstation slots: GameObject enabled iff an item is bound.
-	/// Mount slots: GameObject stays as-is (controlled by parent slot);
-	/// variant children swap based on the bound item kind, falling back to
+	/// Mount slots: GameObject force-enabled — they're logical containers
+	///   for the variant children and never legitimately hidden. Forcing on
+	///   every pass recovers from <see cref="ResetProgress"/> / <see cref="Load"/>'s
+	///   teardown loop, which disables every owned item's SpawnedGameObject
+	///   (set to a Mount.GameObject for desk-bound items via
+	///   <see cref="TryAssignItemToDesk"/>) and historically left chair / PC
+	///   / monitor mount GameObjects dark across a New-Game cycle.
+	/// Variant children swap based on the bound item kind, falling back to
 	/// <see cref="PlacementSlot.DefaultVariant"/> when no item is bound.
 	void ApplySlotVisibility()
 	{
@@ -336,7 +381,12 @@ public sealed class InventoryManager : Component
 
 			var bound = FindItemBoundTo( slot.Id );
 
-			if ( slot.Mode == SlotMode.Workstation )
+			if ( slot.Mode == SlotMode.Mount )
+			{
+				// Always-on: mount containers are never legitimately hidden.
+				go.Enabled = true;
+			}
+			else if ( slot.Mode == SlotMode.Workstation )
 			{
 				// "Fills-all" rule: if any FillsAll catalogue entry targets
 				// this slot, enabling tracks ownership of that kind rather
@@ -1255,8 +1305,30 @@ public sealed class InventoryManager : Component
 
 		_owned.Remove( found );
 
-		// V1 effect: instant morale bump. Replace with a proper timed-buff
-		// system once the consumable mechanic stabilizes.
+		// Per-kind effect dispatch. ChewingGum is the bad-mood immuniser;
+		// EnergyDrink is the Good-mood booster. Anything else falls back
+		// to the v1 morale bump (replace with a proper timed-buff system
+		// once every consumable's effect lands).
+		if ( kind == ItemKind.ChewingGum )
+		{
+			const int ChewingGumImmunityDays = 30;
+			target.GrantBadMoodImmunity( ChewingGumImmunityDays );
+			Notifications.Push( "Given",
+				$"{target.EmployeeName} took a {entry.Name}. Bad mood blocked for {ChewingGumImmunityDays} days.",
+				"success" );
+			return true;
+		}
+
+		if ( kind == ItemKind.EnergyDrink )
+		{
+			const int EnergyDrinkBoostDays = 30;
+			target.GrantEnergyBoost( EnergyDrinkBoostDays );
+			Notifications.Push( "Given",
+				$"{target.EmployeeName} took a {entry.Name}. More likely to be in an innovative mood for {EnergyDrinkBoostDays} days.",
+				"success" );
+			return true;
+		}
+
 		target.Morale = MathF.Min( 1f, target.Morale + 0.10f );
 
 		Notifications.Push( "Given",
@@ -1277,16 +1349,16 @@ public sealed class InventoryManager : Component
 		if ( pm?.Current is null || pm.Current.Phase != GameProjectPhase.Production )
 		{
 			Notifications.Push( "Nothing to skip",
-				"Smoke Break only works during a project's production phase.",
+				"You can only outsource a project that's already in production.",
 				"warning" );
 			return false;
 		}
 
-		// Need shop stock — Smoke Break shares the consumable restock pool.
+		// Need shop stock — Outsource Everything shares the consumable restock pool.
 		if ( ConsumableStock( ItemKind.SmokeBreak ) <= 0 )
 		{
 			Notifications.Push( "Out of stock",
-				"Wait for the shop to restock Smoke Breaks.", "warning" );
+				"Wait for the shop to restock outsourcing slots.", "warning" );
 			return false;
 		}
 
@@ -1296,7 +1368,7 @@ public sealed class InventoryManager : Component
 		if ( gm is null || !gm.TrySpend( price ) )
 		{
 			Notifications.Push( "Not enough money",
-				$"Smoke Break costs ${price:N0}.", "warning" );
+				$"Outsourcing the rest costs ${price:N0}.", "warning" );
 			return false;
 		}
 
@@ -1310,7 +1382,7 @@ public sealed class InventoryManager : Component
 		pm.CompleteWithPenalty( SmokeBreakOutputFactor );
 		gm.AdvanceDays( SmokeBreakDaysSkipped );
 
-		Notifications.Push( "Smoke Break taken",
+		Notifications.Push( "Outsourced",
 			$"\"{title}\" wrapped at {(int)(SmokeBreakOutputFactor * 100)}% output ({SmokeBreakDaysSkipped} days skipped).",
 			"warning", duration: 6f );
 		return true;
@@ -1332,18 +1404,18 @@ public sealed class InventoryManager : Component
 		}
 		if ( found is null )
 		{
-			Notifications.Push( "No Smoke Break",
+			Notifications.Push( "No outsource job",
 				"Buy one from the Shop's Consumable tab first.", "warning" );
 			return false;
 		}
 
-		// Must have a project to skip — Smoke Break is meaningless during
+		// Must have a project to skip — Outsource Everything is meaningless during
 		// Setup (player can just adjust effort) or Finished (already done).
 		var pm = GameProjectManager.Instance;
 		if ( pm?.Current is null || pm.Current.Phase != GameProjectPhase.Production )
 		{
 			Notifications.Push( "Nothing to skip",
-				"Smoke Break only finishes a project that's already in production.",
+				"You can only outsource a project that's already in production.",
 				"warning" );
 			return false;
 		}
@@ -1360,7 +1432,7 @@ public sealed class InventoryManager : Component
 		pm.CompleteWithPenalty( SmokeBreakOutputFactor );
 		GameManager.Instance?.AdvanceDays( SmokeBreakDaysSkipped );
 
-		Notifications.Push( "Smoke Break taken",
+		Notifications.Push( "Outsourced",
 			$"\"{title}\" wrapped at {(int)(SmokeBreakOutputFactor * 100)}% output ({SmokeBreakDaysSkipped} days skipped).",
 			"warning", duration: 6f );
 		return true;
@@ -1569,7 +1641,7 @@ public sealed class InventoryManager : Component
 		if ( dto.ConsumableStock is { Count: > 0 } )
 		{
 			foreach ( var kv in dto.ConsumableStock )
-				_consumableStock[kv.Key] = System.Math.Clamp( kv.Value, 0, MaxConsumableStock );
+				_consumableStock[kv.Key] = System.Math.Clamp( kv.Value, 0, MaxStockFor( kv.Key ) );
 		}
 		if ( dto.ConsumableRestockTimers is { Count: > 0 } )
 		{

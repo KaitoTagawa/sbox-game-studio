@@ -67,6 +67,12 @@ public enum ItemKind
 	/// scales exponentially per use; see InventoryManager.PriceFor.
 	SmokeBreak       = 63,
 
+	/// Bad-mood immuniser. Given to a hire, instantly heals current Bad mood
+	/// (if any) and grants 30 in-game days where Bad-mood rolls are
+	/// suppressed; Good rolls still fire normally. Gated behind 3 lifetime
+	/// hires (see InventoryCatalogue.IsUnlocked).
+	ChewingGum       = 64,
+
 	// ── Office decoration (single SKUs) ─────────────────────────────────
 	Bin              = 70,
 
@@ -154,7 +160,8 @@ public static class ItemKindExtensions
 		ItemKind.ChocolateBar     => "Chocolate Bar",
 		ItemKind.EnergyDrink      => "Energy Drink",
 		ItemKind.ProteinBar       => "Protein Bar",
-		ItemKind.SmokeBreak       => "Smoke Break",
+		ItemKind.SmokeBreak       => "Outsource Everything",
+		ItemKind.ChewingGum       => "Chewing Gum",
 
 		ItemKind.Bin              => "Bin",
 		ItemKind.Server           => "Server",

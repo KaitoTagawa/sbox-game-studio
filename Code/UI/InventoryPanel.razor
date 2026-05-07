@@ -20,47 +20,63 @@
 			<div class="cat-tab @(ActiveCategory == ItemCategory.Consumable ? "active" : "")"
 			     onclick=@(() => SetCategory( ItemCategory.Consumable ))>
 				<div class="cat-tab-name">Consumable</div>
-				<div class="cat-tab-meta">coming soon</div>
+				<div class="cat-tab-meta">@OwnedConsumableKinds.Count in stash</div>
 			</div>
 		</div>
 
 		<div class="body">
 			@if ( ActiveCategory == ItemCategory.Consumable )
 			{
-				@* Smoke Break stash row + a coming-soon block for the
-				   morale-bump consumables (still being reworked). *@
-				@{
-					int smokeStash = OwnedCount( ItemKind.SmokeBreak );
-				}
-
-				@if ( smokeStash > 0 )
+				@* ── CONSUMABLES — every owned consumable kind, with Sell.
+				   SmokeBreak keeps its existing Use button alongside Sell;
+				   give-to-employee for buff consumables now lives in the
+				   chat panel's gift picker, so no Give buttons here. *@
+				@if ( OwnedConsumableKinds.Count == 0 )
 				{
-					var entry = InventoryCatalogue.Get( ItemKind.SmokeBreak );
-					<div class="furn-grid">
-						<div class="furn-card consumable-card">
-							<div class="furn-head">
-								<div class="furn-name">@entry.Name</div>
-								<div class="furn-cat-pill warning">SKIP</div>
-							</div>
-							<div class="furn-desc">@entry.Description</div>
-							<div class="furn-foot">
-								<div class="furn-counts">@smokeStash in stash</div>
-								<div class="furn-use" onclick=@OpenSmokeBreakConfirm>
-									Use
-								</div>
-							</div>
-						</div>
-					</div>
+					<div class="empty-large">No consumables in stash. Buy from the Shop.</div>
 				}
 				else
 				{
-					<div class="empty-large">No Smoke Breaks in stash. Buy from the Shop.</div>
+					<div class="furn-grid">
+						@foreach ( var kind in OwnedConsumableKinds )
+						{
+							var k       = kind;
+							var entry   = InventoryCatalogue.Get( k );
+							if ( entry is null ) { continue; }
+							var stash   = OwnedCount( k );
+							var perUnit = entry.Price / System.Math.Max( 1, entry.BulkSize );
+							var refund  = System.Math.Max( 1L, perUnit / 2 );
+							var isSmoke = k == ItemKind.SmokeBreak;
+							<div class="furn-card consumable-card">
+								<div class="furn-head">
+									<div class="furn-name">@entry.Name</div>
+									@if ( isSmoke )
+									{
+										<div class="furn-cat-pill warning">SKIP</div>
+									}
+									else
+									{
+										<div class="furn-cat-pill">Consumable</div>
+									}
+								</div>
+								<div class="furn-desc">@entry.Description</div>
+								<div class="furn-foot">
+									<div class="furn-counts">@stash in stash</div>
+									@if ( isSmoke )
+									{
+										<div class="furn-use" onclick=@OpenSmokeBreakConfirm>
+											Use
+										</div>
+									}
+									<div class="furn-sell" onclick=@(() => Sell( k ))
+									     title="Sell one @entry.Name for $@refund.ToString("N0").">
+										Sell
+									</div>
+								</div>
+							</div>
+						}
+					</div>
 				}
-
-				<div class="coming-soon-inline">
-					<div class="coming-soon-title-sm">Other consumables</div>
-					<div class="coming-soon-text">Morale-bump consumables are being reworked.</div>
-				</div>
 			}
 			else
 			{
@@ -109,7 +125,7 @@
 		<div class="confirm-backdrop" onclick=@CancelSmokeBreak></div>
 		<div class="confirm-card">
 			<div class="confirm-icon">⚠</div>
-			<div class="confirm-title">Take a Smoke Break?</div>
+			<div class="confirm-title">Outsource everything?</div>
 			<div class="confirm-body">
 				<div class="confirm-lead">Skip the rest of development?</div>
 				<div class="confirm-line">Finishes the current game at 70% potential.</div>
