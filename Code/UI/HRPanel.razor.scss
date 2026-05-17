@@ -1,0 +1,413 @@
+// PROTOTYPE — fullscreen HR modal styling. Mirrors ShopPanel's chrome
+// (window / backdrop / header / cat-tabs) and reuses GameMenuPanel HR body
+// styles (rows, kind-pills, posting-rows, payroll-summary). Delete this file
+// + HRPanel.razor + HR.cs to revert.
+
+HRPanel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	font-family: Poppins;
+	z-index: 100;
+}
+
+HRPanel.open {
+	pointer-events: all;
+}
+
+HRPanel.closed .backdrop,
+HRPanel.closed .window {
+	display: none;
+}
+
+.backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.55 );
+}
+
+// ── Window chrome — copies ShopPanel's edge-pinned percentage box so the
+// two modals feel visually identical at a glance.
+.window {
+	position: absolute;
+	left:   17.5%;
+	right:  17.5%;
+	top:     5%;
+	bottom:  5%;
+	background-color: rgba( 18, 24, 30, 0.96 );
+	border: 2px solid rgba( 230, 140, 60, 0.55 );
+	border-radius: 14px;
+	flex-direction: column;
+	box-shadow: 0px 10px 40px 0px rgba( 0, 0, 0, 0.6 );
+}
+
+.header {
+	flex-direction: row;
+	align-items: center;
+	padding: 18px 24px;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
+}
+
+.title {
+	flex-grow: 1;
+	color: white;
+	font-size: 26px;
+	font-weight: 700;
+	letter-spacing: 2px;
+}
+
+.close-btn {
+	width: 36px;
+	height: 36px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border-radius: 6px;
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+}
+
+.close-btn:hover {
+	background-color: rgba( 220, 80, 80, 0.6 );
+}
+
+// ── Top-level tabs (Hire / Fire / Stats / Posting) ─────────────────────
+// Mirrors ShopPanel's category-tabs strip so the two modals share the
+// same tab chrome.
+
+.cat-tabs {
+	flex-direction: row;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.06 );
+}
+
+.cat-tab {
+	flex-direction: column;
+	flex-grow: 1;
+	padding: 14px 18px;
+	cursor: pointer;
+	border-right: 1px solid rgba( 255, 255, 255, 0.04 );
+	align-items: center;
+}
+
+.cat-tab:last-child { border-right: 1px solid transparent; }
+
+.cat-tab:hover {
+	background-color: rgba( 110, 220, 140, 0.06 );
+}
+
+.cat-tab.active {
+	background-color: rgba( 110, 220, 140, 0.12 );
+	border-bottom: 2px solid rgb( 110, 220, 140 );
+}
+
+.cat-tab-name {
+	color: white;
+	font-size: 16px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.cat-tab-meta {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	margin-top: 2px;
+}
+
+// ── Body ───────────────────────────────────────────────────────────────
+// Scroll container with the canonical flex:1 1 0 + min-height:0 fix so
+// long applicant / staff lists scroll cleanly within the fullscreen window.
+
+.body {
+	flex-direction: column;
+	flex-grow: 1;
+	flex-shrink: 1;
+	flex-basis: 0;
+	min-height: 0;
+	overflow: scroll;
+	gap: 8px;
+	padding: 20px 24px;
+}
+
+.empty {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-size: 16px;
+	padding: 14px 6px;
+	white-space: normal;
+	text-align: center;
+}
+
+// ── HR row chrome ──────────────────────────────────────────────────────
+// Direct port from GameMenuPanel.razor.scss. Bumped a few sizes upward to
+// match the larger fullscreen modal footprint.
+
+.row {
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+	padding: 12px 14px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 8px;
+	flex-shrink: 0;
+}
+
+.row-info {
+	flex-grow: 1;
+	flex-direction: column;
+}
+
+.row-name {
+	flex-direction: row;
+	align-items: center;
+	color: white;
+	font-size: 17px;
+	font-weight: 700;
+}
+
+// Explicit name wrapper — required because raw text nodes inside a
+// flex-direction:row container reorder unpredictably against sibling
+// `<div>` pills in yoga. Wrapping `@Name` in `.name-text` puts the
+// name on the left and the pill (kind-pill / founder-pill) on its right.
+.name-text {
+	color: white;
+	font-size: 17px;
+	font-weight: 700;
+}
+
+// ── Special-hire kind pills + row tints ───────────────────────────────
+
+.kind-pill {
+	background-color: rgba( 255, 255, 255, 0.08 );
+	border: 1px solid rgba( 255, 255, 255, 0.2 );
+	border-radius: 10px;
+	padding: 1px 8px;
+	margin-left: 10px;
+	color: rgba( 255, 255, 255, 0.85 );
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.kind-pill.kind-mentor {
+	background-color: rgba( 170, 110, 220, 0.2 );
+	border-color: rgba( 170, 110, 220, 0.65 );
+	color: rgb( 215, 175, 245 );
+}
+.row.kind-mentor       { border-color: rgba( 170, 110, 220, 0.5 ); }
+
+.kind-pill.kind-marketing {
+	background-color: rgba( 240, 110, 190, 0.2 );
+	border-color: rgba( 240, 110, 190, 0.65 );
+	color: rgb( 250, 165, 215 );
+}
+.row.kind-marketing    { border-color: rgba( 240, 110, 190, 0.5 ); }
+
+.kind-pill.kind-remote {
+	background-color: rgba( 80, 200, 210, 0.2 );
+	border-color: rgba( 80, 200, 210, 0.65 );
+	color: rgb( 130, 230, 240 );
+}
+.row.kind-remote       { border-color: rgba( 80, 200, 210, 0.5 ); }
+
+.kind-pill.kind-intern {
+	background-color: rgba( 120, 180, 255, 0.2 );
+	border-color: rgba( 120, 180, 255, 0.65 );
+	color: rgb( 165, 205, 255 );
+}
+.row.kind-intern       { border-color: rgba( 120, 180, 255, 0.5 ); }
+
+// ── Buttons ────────────────────────────────────────────────────────────
+
+.btn {
+	padding: 9px 18px;
+	border-radius: 6px;
+	font-size: 14px;
+	font-weight: 700;
+	color: white;
+	cursor: pointer;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.1s ease-out;
+}
+
+.btn.reject {
+	width: 32px;
+	padding: 9px 0;
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border: 1px solid rgba( 255, 255, 255, 0.18 );
+}
+.btn.reject:hover {
+	background-color: rgba( 220, 80, 80, 0.6 );
+	border-color: rgb( 220, 80, 80 );
+}
+
+.btn.fire {
+	background-color: rgba( 220, 80, 80, 0.65 );
+	border: 1px solid rgb( 220, 80, 80 );
+}
+.btn.fire:hover {
+	background-color: rgb( 220, 80, 80 );
+}
+
+.btn.interview {
+	background-color: rgba( 80, 170, 230, 0.65 );
+	border: 1px solid rgb( 80, 170, 230 );
+}
+.btn.interview:hover {
+	background-color: rgb( 80, 170, 230 );
+}
+
+.energy-tag {
+	color: rgba( 255, 230, 130, 1 );
+	font-size: 12px;
+	font-weight: 700;
+	margin-left: 6px;
+}
+
+// ── Job posting picker ──────────────────────────────────────────────────
+
+.posting-row {
+	flex-direction: row;
+	align-items: center;
+	gap: 14px;
+	padding: 14px 18px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.12s ease-out;
+	flex-shrink: 0;
+}
+
+.posting-row:hover {
+	background-color: rgba( 255, 255, 255, 0.07 );
+	border-color: rgba( 255, 255, 255, 0.25 );
+}
+
+.posting-row.current {
+	background-color: rgba( 110, 220, 140, 0.16 );
+	border-color: rgb( 110, 220, 140 );
+}
+
+.posting-row.locked {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.posting-row.locked:hover {
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border-color: rgba( 255, 255, 255, 0.08 );
+}
+
+.posting-info {
+	flex-direction: column;
+	flex-grow: 1;
+}
+
+.posting-name {
+	color: white;
+	font-size: 17px;
+	font-weight: 700;
+}
+
+.posting-desc {
+	color: rgba( 255, 255, 255, 0.65 );
+	font-size: 13px;
+	margin-top: 2px;
+	white-space: normal;
+}
+
+.posting-cost {
+	color: rgba( 255, 200, 60, 0.95 );
+	font-size: 14px;
+	font-weight: 700;
+	width: 110px;
+	text-align: right;
+}
+
+.posting-status {
+	width: 72px;
+	text-align: center;
+	padding: 6px 10px;
+	font-size: 13px;
+	font-weight: 700;
+	color: rgba( 255, 255, 255, 0.7 );
+	background-color: rgba( 255, 255, 255, 0.06 );
+	border-radius: 6px;
+}
+
+.posting-row.current .posting-status {
+	color: rgb( 18, 24, 30 );
+	background-color: rgb( 110, 220, 140 );
+}
+
+.posting-lock {
+	color: rgba( 255, 200, 80, 0.85 );
+	font-size: 12px;
+	font-weight: 600;
+	margin-top: 4px;
+	white-space: normal;
+}
+
+// ── Payroll summary (Stats subview header) ─────────────────────────────
+
+.payroll-summary {
+	flex-direction: column;
+	gap: 4px;
+	padding: 12px 16px;
+	margin-bottom: 6px;
+	background-color: rgba( 255, 200, 60, 0.07 );
+	border: 1px solid rgba( 255, 200, 60, 0.25 );
+	border-radius: 8px;
+	flex-shrink: 0;
+}
+
+.payroll-line {
+	flex-direction: row;
+	align-items: center;
+}
+
+.payroll-label {
+	flex-grow: 1;
+	color: rgba( 255, 255, 255, 0.7 );
+	font-size: 14px;
+}
+
+.payroll-value {
+	color: rgba( 255, 220, 130, 0.95 );
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.payroll-line.total {
+	margin-top: 4px;
+	padding-top: 4px;
+	border-top: 1px solid rgba( 255, 200, 60, 0.25 );
+}
+
+.payroll-line.total .payroll-label {
+	color: white;
+	font-weight: 700;
+}
+
+.payroll-line.total .payroll-value {
+	color: rgb( 255, 200, 60 );
+	font-size: 16px;
+}
+
+// Founder pill — same gold treatment as the GameMenu HR section.
+.founder-pill {
+	background-color: rgba( 230, 200, 110, 0.18 );
+	border: 1px solid rgba( 230, 200, 110, 0.6 );
+	border-radius: 10px;
+	padding: 1px 8px;
+	margin-left: 10px;
+	color: rgb( 240, 215, 130 );
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}

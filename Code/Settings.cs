@@ -15,9 +15,9 @@ public sealed class Settings : Component
 
 	// ── Audio (0–1) ──────────────────────────────────────────────────────────
 
-	[Property] public float MasterVolume { get; set; } = 1.00f;
-	[Property] public float MusicVolume  { get; set; } = 0.70f;
-	[Property] public float SfxVolume    { get; set; } = 0.85f;
+	[Property] public float MasterVolume { get; set; } = 0.50f;
+	[Property] public float MusicVolume  { get; set; } = 0.50f;
+	[Property] public float SfxVolume    { get; set; } = 0.50f;
 
 	// ── Controls ─────────────────────────────────────────────────────────────
 
@@ -63,12 +63,7 @@ public sealed class Settings : Component
 	public void SetOpen( bool open )
 	{
 		IsOpen = open;
-		// Closing the in-game menu (and the shop) keeps modal stacking simple.
-		if ( open )
-		{
-			GameMenu.Instance?.SetOpen( false );
-			Shop.Instance?.SetOpen( false );
-		}
+		if ( open ) Modals.CloseAllExcept( this );
 		GameManager.RefreshPlayerLock();
 	}
 
@@ -121,23 +116,31 @@ public sealed class Settings : Component
 	}
 
 	// ── Setters (the panel's click handlers call these) ─────────────────────
+	// Each setter calls Persist() so the change hits disk immediately —
+	// relying on OnDestroy-only writes was unreliable (Alt-F4 / editor
+	// stop / crash could skip the write and lose the user's choice).
+
+	void Persist() => GameSaveManager.Instance?.SaveSettings();
 
 	public void SetMasterVolume( float v )
 	{
 		MasterVolume = Math.Clamp( v, 0f, 1f );
 		ApplyAudio();
+		Persist();
 	}
 
 	public void SetMusicVolume( float v )
 	{
 		MusicVolume = Math.Clamp( v, 0f, 1f );
 		ApplyAudio();
+		Persist();
 	}
 
 	public void SetSfxVolume( float v )
 	{
 		SfxVolume = Math.Clamp( v, 0f, 1f );
 		ApplyAudio();
+		Persist();
 	}
 
 	public void IncSensitivity() => SetSensitivity( MouseSensitivity + SensitivityStep );
@@ -149,9 +152,14 @@ public sealed class Settings : Component
 		var clamped = Math.Clamp( v, MinSensitivity, MaxSensitivity );
 		MouseSensitivity = MathF.Round( clamped / SensitivityStep ) * SensitivityStep;
 		ApplySensitivity();
+		Persist();
 	}
 
-	public void ToggleInvertY() => InvertY = !InvertY;
+	public void ToggleInvertY()
+	{
+		InvertY = !InvertY;
+		Persist();
+	}
 
 	public void IncFov() => SetFov( FieldOfView + FovStep );
 	public void DecFov() => SetFov( FieldOfView - FovStep );
@@ -159,6 +167,7 @@ public sealed class Settings : Component
 	public void SetFov( int v )
 	{
 		FieldOfView = Math.Clamp( v, MinFov, MaxFov );
+		Persist();
 	}
 
 	// ── Save / Load (per ADR-0001) ────────────────────────────────────────

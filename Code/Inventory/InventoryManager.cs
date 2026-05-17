@@ -38,15 +38,7 @@ public sealed class InventoryManager : Component
 	public void SetOpen( bool open )
 	{
 		IsOpen = open;
-		if ( open )
-		{
-			GameMenu.Instance?.SetOpen( false );
-			Shop.Instance?.SetOpen( false );
-			Settings.Instance?.SetOpen( false );
-			Gallery.Instance?.SetOpen( false );
-			TrainingManager.Instance?.SetOpen( false );
-			GameProjectManager.Instance?.SetOpen( false );
-		}
+		if ( open ) Modals.CloseAllExcept( this );
 		GameManager.RefreshPlayerLock();
 	}
 
@@ -231,6 +223,10 @@ public sealed class InventoryManager : Component
 	/// path in <see cref="RestockChewingGumMonthly"/> instead.
 	void TickConsumableRestocks()
 	{
+		// Modal / Escape-menu pause — restocks freeze with the rest of
+		// the time-based gameplay state.
+		if ( GameManager.Instance is { IsTimePaused: true } ) return;
+
 		// Snapshot keys: the dictionary is mutated below, can't enumerate live.
 		var keys = _consumableStock.Keys.ToList();
 		foreach ( var kind in keys )
@@ -261,6 +257,24 @@ public sealed class InventoryManager : Component
 		var cap     = MaxStockFor( ItemKind.ChewingGum );
 		var topped  = System.Math.Min( cap, current + ChewingGumMonthlyRestock );
 		_consumableStock[ItemKind.ChewingGum] = topped;
+	}
+
+	/// Public reward-hook: grant <paramref name="amount"/> free consumable
+	/// items of <paramref name="kind"/> directly into the player's owned
+	/// stash, ready to be given to a hire via <see cref="TryGiveConsumable"/>.
+	/// Used by reward paths (medal awards, future milestones) to hand the
+	/// player real inventory — not shop stock — without spending money.
+	///
+	/// Adds one <see cref="InventoryItem"/> per unit so the existing stash /
+	/// give / use pipeline treats them identically to bought copies.
+	public void GrantConsumable( ItemKind kind, int amount )
+	{
+		if ( amount <= 0 ) return;
+		var entry = InventoryCatalogue.Get( kind );
+		if ( entry is null || entry.Category != ItemCategory.Consumable ) return;
+
+		for ( int i = 0; i < amount; i++ )
+			_owned.Add( new InventoryItem { Kind = kind } );
 	}
 
 	// ── Slot discovery ───────────────────────────────────────────────────────
@@ -815,6 +829,7 @@ public sealed class InventoryManager : Component
 		// scoped to that desk only.
 		if ( IsDeskBoundKind( kind ) )
 		{
+			SFX.PlayPurchase();
 			Notifications.Push( "Purchased",
 				bulk > 1
 					? $"{bulk}× {entry.Name} added to storage. Assign each in Inventory."
@@ -857,6 +872,8 @@ public sealed class InventoryManager : Component
 	void NotifyBuySuccess( InventoryCatalogue.Entry entry,
 		string fallbackTitle, string fallbackBody, string fallbackLevel = "success" )
 	{
+		SFX.PlayPurchase();
+
 		if ( entry.StatBoost > 0
 			&& entry.Category != ItemCategory.Consumable
 			&& !IsDeskBoundKind( entry.Kind ) )
@@ -913,6 +930,18 @@ public sealed class InventoryManager : Component
 			double raw = SmokeBreakBasePrice * Math.Pow( 2, _smokeBreakUsesCount );
 			if ( raw >= SmokeBreakMaxPrice ) return SmokeBreakMaxPrice;
 			return (long)raw;
+		}
+
+		// Team-wide morale consumables (Chewing Gum / Energy Drink) scale
+		// linearly with desk count: catalogue base × current desks. The
+		// item is consumed across the entire staff in one round, so the
+		// price tracks "how big is your studio." 1 desk = base ($400);
+		// fully kitted-out 8-desk office = $3,200 per buff round.
+		// Floor of 1× catches any pre-starter-desk edge case.
+		if ( kind == ItemKind.ChewingGum || kind == ItemKind.EnergyDrink )
+		{
+			int desks = Math.Max( 1, OwnedCount( ItemKind.Desk ) );
+			return entry.Price * desks;
 		}
 
 		return entry.Price;
@@ -1305,26 +1334,17 @@ public sealed class InventoryManager : Component
 
 		_owned.Remove( found );
 
-		// Per-kind effect dispatch. ChewingGum is the bad-mood immuniser;
-		// EnergyDrink is the Good-mood booster. Anything else falls back
-		// to the v1 morale bump (replace with a proper timed-buff system
-		// once every consumable's effect lands).
-		if ( kind == ItemKind.ChewingGum )
+		// Per-kind effect dispatch. ChewingGum and EnergyDrink both grant
+		// the Good-mood booster; ChewingGum is the budget tier (shorter
+		// window, half the price). Anything else falls back to the v1
+		// morale bump (replace with a proper timed-buff system once every
+		// consumable's effect lands).
+		if ( kind == ItemKind.ChewingGum || kind == ItemKind.EnergyDrink )
 		{
-			const int ChewingGumImmunityDays = 30;
-			target.GrantBadMoodImmunity( ChewingGumImmunityDays );
+			int days = kind == ItemKind.ChewingGum ? 14 : 30;
+			target.GrantEnergyBoost( days );
 			Notifications.Push( "Given",
-				$"{target.EmployeeName} took a {entry.Name}. Bad mood blocked for {ChewingGumImmunityDays} days.",
-				"success" );
-			return true;
-		}
-
-		if ( kind == ItemKind.EnergyDrink )
-		{
-			const int EnergyDrinkBoostDays = 30;
-			target.GrantEnergyBoost( EnergyDrinkBoostDays );
-			Notifications.Push( "Given",
-				$"{target.EmployeeName} took a {entry.Name}. More likely to be in an innovative mood for {EnergyDrinkBoostDays} days.",
+				$"{target.EmployeeName} took a {entry.Name}. More likely to be in an innovative mood for {days} days.",
 				"success" );
 			return true;
 		}

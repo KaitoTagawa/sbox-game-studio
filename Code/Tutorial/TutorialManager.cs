@@ -48,10 +48,6 @@ public sealed class TutorialManager : Component
 	/// future Good-mood toasts use the default 5s auto-expire.
 	[Property] public bool FirstGoodMoodToastSeen { get; set; }
 
-	/// Counterpart to <see cref="FirstGoodMoodToastSeen"/> for the first-ever
-	/// Bad-mood (Frustrated) toast.
-	[Property] public bool FirstBadMoodToastSeen { get; set; }
-
 	// ── Visibility helpers ──────────────────────────────────────────────────
 
 	/// True while the tutorial wants the calendar / project / applicant /
@@ -448,7 +444,6 @@ public sealed class TutorialManager : Component
 		ChairAssigned          = ChairAssigned,
 		LastAcknowledgedPhase  = LastAcknowledgedPhase,
 		FirstGoodMoodToastSeen = FirstGoodMoodToastSeen,
-		FirstBadMoodToastSeen  = FirstBadMoodToastSeen,
 	};
 
 	public void Load( TutorialSave dto )
@@ -465,7 +460,6 @@ public sealed class TutorialManager : Component
 			ChairAssigned          = false;
 			LastAcknowledgedPhase  = hasStaff ? TutorialPhase.Complete : (TutorialPhase?)null;
 			FirstGoodMoodToastSeen = false;
-			FirstBadMoodToastSeen  = false;
 			return;
 		}
 
@@ -476,7 +470,6 @@ public sealed class TutorialManager : Component
 		ChairAssigned          = dto.ChairAssigned;
 		LastAcknowledgedPhase  = dto.LastAcknowledgedPhase;
 		FirstGoodMoodToastSeen = dto.FirstGoodMoodToastSeen;
-		FirstBadMoodToastSeen  = dto.FirstBadMoodToastSeen;
 	}
 
 	/// Renamed from Reset() so it doesn't shadow Component.Reset(), which
@@ -490,7 +483,6 @@ public sealed class TutorialManager : Component
 		ChairAssigned          = false;
 		LastAcknowledgedPhase  = null;
 		FirstGoodMoodToastSeen = false;
-		FirstBadMoodToastSeen  = false;
 		Log.Info( $"[Tutorial] ResetProgress — Phase=Welcome. IsAnyModalVisible={IsAnyModalVisible}." );
 	}
 }

@@ -247,9 +247,9 @@
 				<div class="section">
 					<div class="section-label">
 						<div class="section-label-text">EFFORT PER PILLAR</div>
-						<div class="time-total ok">@BudgetLabel</div>
+						<div class="time-total @BudgetClass">@BudgetLabel</div>
 					</div>
-					<div class="alloc-hint">Effort sets each pillar's quality points at ship — total points across all three drive the review score.</div>
+					<div class="alloc-hint">Spend the full budget across the three pillars to begin production.</div>
 				</div>
 
 				<div class="time-sliders">
@@ -506,6 +506,24 @@
 		{
 			if ( GameProjectManager.Instance is not { } mgr ) return "";
 			return $"{FormatPct( mgr.TotalEffortSpent )} / {FormatPct( mgr.TotalEffortBudget )} budget";
+		}
+	}
+
+	/// Colour cue for the budget readout, mirroring the gate in
+	/// <see cref="GameProjectManager.CanAdvancePage"/>: green once the
+	/// player has spent the full budget (Begin Production unlocked),
+	/// amber while there's still headroom, dimmed at zero spend.
+	private string BudgetClass
+	{
+		get
+		{
+			if ( GameProjectManager.Instance is not { } mgr ) return "zero";
+			float spent  = mgr.TotalEffortSpent;
+			float budget = mgr.TotalEffortBudget;
+			if ( spent  <= 0f )            return "zero";
+			if ( budget <= 0f )            return "zero";
+			if ( spent >= budget - 0.001f ) return "ok";
+			return "under";
 		}
 	}
 

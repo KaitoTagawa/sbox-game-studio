@@ -28,14 +28,7 @@ public sealed class TrainingManager : Component
 	public void SetOpen( bool open )
 	{
 		IsOpen = open;
-		if ( open )
-		{
-			GameMenu.Instance?.SetOpen( false );
-			Shop.Instance?.SetOpen( false );
-			Settings.Instance?.SetOpen( false );
-			Gallery.Instance?.SetOpen( false );
-			GameProjectManager.Instance?.SetOpen( false );
-		}
+		if ( open ) Modals.CloseAllExcept( this );
 		GameManager.RefreshPlayerLock();
 	}
 
@@ -166,6 +159,9 @@ public sealed class TrainingManager : Component
 		// `UnlockTrainingOffers` for the burst-release on desk-buy.
 		if ( !TrainingUnlocked ) return;
 
+		// Modal / Escape-menu pause.
+		if ( GameManager.Instance is { IsTimePaused: true } ) return;
+
 		_offerTimer += Time.Delta;
 		if ( _offerTimer < SecondsBetweenOffers ) return;
 		_offerTimer = 0f;
@@ -221,11 +217,26 @@ public sealed class TrainingManager : Component
 
 		// Each offer carries its own MainStat so the player decides by
 		// picking an offer rather than picking offer + stat separately.
-		// Picked uniformly at random across the six main stats.
-		var stat = (MainStat)_rng.Next( 6 );
+		// Restricted to the three production stats (Design / Sound /
+		// Artistry) — the only stats currently wired into project pillar
+		// throughput. Programming / Creativity / Focus training is
+		// excluded until those stats actually drive scoring (the parked
+		// progression rework + Producer Boost in gamedev.md G14).
+		var stat = TrainableStats[_rng.Next( TrainableStats.Length )];
 
 		return new TrainingOffer { Mode = mode, Tier = tier, Name = name, Stat = stat };
 	}
+
+	/// Stats trainable through the offer pump. Tied to the production
+	/// pillars (DesignTeamStrength / SoundTeamStrength / GraphicsTeamStrength).
+	/// Re-add MainStat.Programming / Creativity / Focus here when their
+	/// gameplay hooks land.
+	static readonly MainStat[] TrainableStats =
+	{
+		MainStat.Design,
+		MainStat.Sound,
+		MainStat.Artistry,
+	};
 
 	TrainingTier RollTier()
 	{
@@ -743,12 +754,21 @@ public sealed class TrainingManager : Component
 		if ( dto is null )
 		{
 			_offerTimer = 0f;
-			return;
+		}
+		else
+		{
+			foreach ( var id    in dto.ResearchInbox ) _researchInbox.Add( id );
+			foreach ( var offer in dto.Offers        ) _offers.Add( offer );
+			_offerTimer = dto.OfferTimer;
 		}
 
-		foreach ( var id    in dto.ResearchInbox ) _researchInbox.Add( id );
-		foreach ( var offer in dto.Offers        ) _offers.Add( offer );
-		_offerTimer = dto.OfferTimer;
+		// Mirror the OnAwake seed so a fresh run (Load(null) via RestartRun)
+		// or an empty-inbox save doesn't leave the Research tab dead until
+		// the first month rolls 5 real minutes later. No-op when the load
+		// already restored topics, and TryRollResearchTopic itself bails
+		// gracefully if every researchable genre is already unlocked.
+		if ( _researchInbox.Count == 0 )
+			TryRollResearchTopic();
 	}
 }
 

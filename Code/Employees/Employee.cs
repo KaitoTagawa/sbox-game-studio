@@ -164,23 +164,61 @@ public sealed class Employee
 		_                          => 1.00f,
 	};
 
-	/// Salary derived from actual stat quality rather than a flat tier bracket.
-	/// Formula: overall × <see cref="SalaryPerStatPoint"/> × role multiplier × ±12 % noise × <paramref name="salaryBias"/>,
-	/// floored at $50. The bias is the key skill knob: the player can't see
-	/// every stat, but they can see the salary, so a low-bias candidate (great
-	/// deal) is a hidden bargain even if their visible stats look average.
+	/// Salary derived from actual stat quality on a piecewise exponential
+	/// curve (rebalanced 2026-05-08 — was linear ×$2.50/stat).
+	/// Formula:
+	///   • OVR ≤ 700: <see cref="SalaryAnchorWage"/> × <see cref="SalaryGrowthBase"/>^((overall − <see cref="SalaryAnchorStats"/>) / <see cref="SalaryGrowthStatStep"/>)
+	///   • OVR > 700: <c>kneeWage</c> × <see cref="SalaryGrowthLateBase"/>^((overall − <see cref="SalaryGrowthKneeStats"/>) / <see cref="SalaryGrowthStatStep"/>)
+	/// Then × role multiplier × ±12 % noise × <paramref name="salaryBias"/>, floored at $50.
 	///
-	/// Numbers anchor the early-game economy at $2.50 per overall stat point —
-	/// a 300-stat hire at neutral bias ≈ $750/mo, "great deal" ≈ $450/mo,
-	/// "overpriced" ≈ $1,100/mo. A senior 600-stat hire ≈ $1,500/mo at market,
-	/// $2,500/mo for a maxed 1000-stat hire. Tutorial first hire is hard-pinned
-	/// at $750 to match the 300-stat profile (see <see cref="GenerateTutorialApplicant"/>).
-	const double SalaryPerStatPoint = 2.5;
+	/// The curve is anchored so a 300-OVR hire at neutral bias still costs
+	/// ~$750/mo (matches the hard-pinned tutorial wage in
+	/// <see cref="GenerateTutorialApplicant"/>, which stays untouched). The
+	/// rate is steep (×1.8 per +100 OVR) up to OVR 700, then knees down to
+	/// ×1.6 per +100 OVR — so the mid-→-senior climb is punchy, but elite
+	/// teams don't price themselves entirely out of profitability.
+	///
+	/// Anchor table (neutral bias / role / variance):
+	///   300 → $750     400 → $1,350     500 → $2,430     600 → $4,374
+	///   700 → $7,873   800 → $12,124    900 → $18,672   1000 → $28,752
+	///
+	/// Late-base (1.54) was reverse-engineered from the 8-employee revenue
+	/// model: an all-OVR-1000 studio (3/3/2 pillar split, neutral bias /
+	/// role / quality) ships ~$329K/mo steady-state; an 8× $28,752 payroll
+	/// nets ~$100K/mo profit. Mid-tier (≤ OVR 700) ROI is unaffected.
+	///
+	/// SalaryBias still rolls multiplicatively on top — a 0.6× great-deal
+	/// elite is 60 % of the curve, a 1.45× overpriced one is 145 %. The
+	/// hidden-stats interview minigame's skill check stays intact.
+	const double SalaryAnchorStats    = 300.0;   // OVR at which the curve passes through anchor wage
+	const double SalaryAnchorWage     = 774.0;   // monthly $ at the anchor — bumped 750→774 on 2026-05-09 so an 8× OVR-700 team lands at ~$65K/mo payroll (target hit: 774 × 1.8⁴ × 8 = $65,028)
+	const double SalaryGrowthBase     = 1.8;     // wage multiplier per StatStep BELOW the knee
+	const double SalaryGrowthLateBase = 1.40;    // wage multiplier per StatStep ABOVE the knee — softened 1.54→1.40 on 2026-05-09 so OVR-1000 profit grows monotonically instead of collapsing under salary at the saturated revenue ceiling
+	const double SalaryGrowthKneeStats = 700.0;  // OVR at which growth slope kinks down
+	const double SalaryGrowthStatStep = 100.0;   // OVR per growth-base step
 
 	static long CalculateSalary( Random rng, EmployeeStats stats, EmployeeRole role, float salaryBias = 1f )
 	{
 		double variance = 0.88 + rng.NextDouble() * 0.24;            // 0.88–1.12
-		double raw      = stats.Overall * SalaryPerStatPoint * RoleMultiplier( role ) * variance * salaryBias;
+		double overall  = stats.Overall;
+
+		double curve;
+		if ( overall <= SalaryGrowthKneeStats )
+		{
+			double exponent = (overall - SalaryAnchorStats) / SalaryGrowthStatStep;
+			curve = SalaryAnchorWage * Math.Pow( SalaryGrowthBase, exponent );
+		}
+		else
+		{
+			// Continuous join: evaluate the lower branch at the knee, then
+			// continue with the gentler late-game growth from that anchor.
+			double kneeExponent = (SalaryGrowthKneeStats - SalaryAnchorStats) / SalaryGrowthStatStep;
+			double kneeWage     = SalaryAnchorWage * Math.Pow( SalaryGrowthBase, kneeExponent );
+			double exponent     = (overall - SalaryGrowthKneeStats) / SalaryGrowthStatStep;
+			curve = kneeWage * Math.Pow( SalaryGrowthLateBase, exponent );
+		}
+
+		double raw = curve * RoleMultiplier( role ) * variance * salaryBias;
 		return Math.Max( 50L, (long)raw );
 	}
 
@@ -282,7 +320,8 @@ public sealed class Employee
 
 	/// <summary>
 	/// The very first applicant the player ever sees: a flat 300-stat
-	/// programmer at a fixed $750/mo salary (anchors the $2.50-per-stat curve).
+	/// programmer at a fixed $750/mo salary (the anchor point of the
+	/// exponential salary curve in <see cref="CalculateSalary"/>).
 	/// Designed as a tutorial gimme —
 	/// both revealed stats will be 300, the rest are guaranteed to also be
 	/// 300, and the player CAN'T pass (Pass is hidden in the InterviewPanel
@@ -308,7 +347,7 @@ public sealed class Employee
 			Tier           = 1, // mid — matches the 300-stat profile
 			Stats          = stats,
 			Abilities      = abilities,
-			Salary         = 750L,      // fixed tutorial wage — anchors the salary curve at $2.50 per OVR stat point
+			Salary         = 750L,      // fixed tutorial wage — also where the exponential salary curve passes through (300 OVR, see CalculateSalary)
 			SalaryBias     = 1f,
 			AppearanceSeed = rng.Next(),
 			IsTutorialHire = true,

@@ -4,8 +4,6 @@
 /// the moment the project leaves Production.
 ///
 /// Effects:
-///   • <see cref="Bad"/>  — pillar-contribution × 0.5 in <c>GameProjectManager.PillarContribution</c>.
-///                          Cleared the moment the player opens a chat with the NPC.
 ///   • <see cref="Good"/> — NPC has a non-null <see cref="EmployeeNPC.PendingSuggestion"/>.
 ///                          The chat panel shows it as the greeting and replaces the
 ///                          default reply set with Accept / Decline.
@@ -14,7 +12,6 @@ public enum EmployeeMood
 {
 	Neutral,
 	Good,
-	Bad,
 }
 
 /// <summary>

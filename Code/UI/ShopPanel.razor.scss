@@ -35,7 +35,7 @@ ShopPanel.closed .window {
 	top:     5%;
 	bottom:  5%;
 	background-color: rgba( 18, 24, 30, 0.96 );
-	border: 2px solid rgba( 110, 220, 140, 0.5 );
+	border: 2px solid rgba( 80, 170, 230, 0.55 );
 	border-radius: 14px;
 	flex-direction: column;
 	box-shadow: 0px 10px 40px 0px rgba( 0, 0, 0, 0.6 );
@@ -136,8 +136,16 @@ ShopPanel.closed .window {
 }
 
 .item {
-	width: 270px;
-	height: 140px;
+	// ── READABILITY TUNING 2026-05-08 ────────────────────────────────────
+	// Tile bumped slightly so the larger description font (see .item-desc
+	// below) has room to breathe. Originals before tuning:
+	//     width:  270px
+	//     height: 140px
+	// Reverting all three bumps (here + .item-name + .item-desc) restores
+	// the prior visual exactly.
+	width: 300px;
+	height: 170px;
+	// ── /READABILITY TUNING ──────────────────────────────────────────────
 	flex-shrink: 0;        // pair with parent overflow:scroll so cards don't squish
 	background-color: rgba( 255, 255, 255, 0.04 );
 	border: 1px solid rgba( 255, 255, 255, 0.08 );
@@ -165,14 +173,21 @@ ShopPanel.closed .window {
 
 .item-name {
 	color: white;
-	font-size: 18px;
+	// READABILITY TUNING 2026-05-08 — was 18px. Restore to revert.
+	font-size: 20px;
 	font-weight: 600;
 }
 
 .item-desc {
 	color: rgba( 255, 255, 255, 0.55 );
-	font-size: 11px;
-	margin-top: 4px;
+	// ── READABILITY TUNING 2026-05-08 ────────────────────────────────────
+	// Description was nearly unreadable at 11px. Bumped to 15px and the
+	// alpha lifted from 0.55 → 0.78 for contrast. Restore both lines to
+	// revert: font-size: 11px; color: rgba(255,255,255,0.55);
+	font-size: 15px;
+	color: rgba( 255, 255, 255, 0.78 );
+	// ── /READABILITY TUNING ──────────────────────────────────────────────
+	margin-top: 6px;
 	flex-grow: 1;
 }
 

@@ -88,6 +88,7 @@ public sealed class GameManager : Component
 	{
 		Instance = this;
 		Money    = StartingMoney;
+		Tips.Reset();
 	}
 
 	protected override void OnDestroy()
@@ -100,7 +101,47 @@ public sealed class GameManager : Component
 		ApplyPlayerLock();
 		TickCalendar();
 		TickEnergyRegen();
+		// Per-frame ratchet for the "Peak Wallet" leaderboard. One long
+		// compare; assigns only when the wallet hits a new high. See
+		// ADR-0002 + Achievements.PeakBalance.
+		Achievements.RecordBalance( Money );
 		Notifications.Tick();
+		Tips.Tick();
+	}
+
+	// ── Time pause ────────────────────────────────────────────────────────────
+
+	/// True when in-game calendar / project / energy time should freeze.
+	/// Out-of-game configuration UIs (Create Game / Settings / Save)
+	/// trigger this. Real-time UI (notifications, tips) keeps ticking —
+	/// only in-game systems consult this gate.
+	///
+	/// Other in-game modals (HR / Shop / Inventory / etc.) deliberately do
+	/// NOT pause time — those are decisions made *during* play, where the
+	/// passing day is part of the cost.
+	///
+	/// **Engine pause not handled.** The s&amp;box Resume/Leave menu (Escape
+	/// key) is treated as a player exiting the session — not a true pause.
+	/// A few seconds of time advancing while they're on their way out
+	/// doesn't matter. If a proper engine-pause signal becomes available
+	/// in a future s&amp;box build, add it here.
+	public bool IsTimePaused
+	{
+		get
+		{
+			// Create Game modal: only pauses during the SETUP phases
+			// (configuring genres, team, time allocation). Once the
+			// project flips to Production, the same modal becomes a
+			// live status view of the in-flight game — time MUST keep
+			// advancing because the project is actively producing.
+			var pm = GameProjectManager.Instance;
+			if ( pm is { IsOpen: true } && pm.Current?.Phase != GameProjectPhase.Production )
+				return true;
+
+			if ( Settings.Instance is { IsOpen: true } ) return true;
+			if ( SaveMenu.Instance is { IsOpen: true } ) return true;
+			return false;
+		}
 	}
 
 	// ── Calendar tick ─────────────────────────────────────────────────────────
@@ -113,6 +154,10 @@ public sealed class GameManager : Component
 		// energy regen) is paused so the player can't accidentally let the
 		// game advance before they make their first hire.
 		if ( TutorialManager.Instance is { IsBlockingTime: true } ) return;
+
+		// Modal / Escape-menu pause: out-of-game UIs and the engine pause
+		// freeze the calendar so no day rollovers happen while configuring.
+		if ( IsTimePaused ) return;
 
 		_dayAccum += Time.Delta * TimeMultiplier;
 		if ( _dayAccum < SecondsPerDay ) return;
@@ -259,6 +304,10 @@ public sealed class GameManager : Component
 
 	private void TickEnergyRegen()
 	{
+		// Mirror the calendar's pause gate so energy doesn't tick during
+		// out-of-game UIs or the engine pause menu.
+		if ( IsTimePaused ) return;
+
 		// Energy ONLY accrues during active project production.
 		// `EnergyRegenPerSecond` is intentionally ignored so a stale
 		// scene-inspector value (0.5 default) can't quietly leak passive
@@ -320,6 +369,15 @@ public sealed class GameManager : Component
 	private void ApplyPlayerLock()
 	{
 		var anyOpen = (Shop.Instance?.IsOpen                   ?? false)
+		           // HR-PROTOTYPE-2026-05-08: fullscreen HR modal. Remove this
+		           // single line + delete Code/HR.cs + Code/UI/HRPanel.razor*
+		           // to revert the prototype cleanly.
+		           || (HR.Instance?.IsOpen                     ?? false)
+		           || (Leaderboards.Instance?.IsOpen           ?? false)
+		           || (SaveMenu.Instance?.IsOpen               ?? false)
+		           || (Letterbox.Instance?.IsOpen              ?? false)
+		           || (Letterbox.Instance?.IsReadingLetter     ?? false)
+		           || (Letterbox.Instance?.IsQuestOpen         ?? false)
 		           || (GameMenu.Instance?.IsOpen               ?? false)
 		           || (Settings.Instance?.IsOpen               ?? false)
 		           || (GameProjectManager.Instance?.IsOpen     ?? false)

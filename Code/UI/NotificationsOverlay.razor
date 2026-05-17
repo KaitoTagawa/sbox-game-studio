@@ -14,8 +14,8 @@
 		@foreach ( var toast in Toasts )
 		{
 			@* Only "warning" routes here now — info / success / danger
-			   all live on the Hud stack so red mood toasts share the
-			   visual area with blue idea toasts. *@
+			   all live on the Hud stack so notification colors share
+			   the same visual area. *@
 			if ( toast.Kind != "warning" ) continue;
 			var t = toast;
 			<div class="toast toast-@t.Kind">

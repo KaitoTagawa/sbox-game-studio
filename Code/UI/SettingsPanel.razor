@@ -19,6 +19,8 @@
 				<div class="setting-row">
 					<div class="setting-label">Master Volume</div>
 					<div class="vol-bar">
+						<div class="vol-mute @(MasterVolume == 0 ? "active" : "")"
+						     onclick=@(() => SetMasterVolume( 0f ))>×</div>
 						@for ( int i = 0; i < 10; i++ )
 						{
 							var step = i;
@@ -34,6 +36,8 @@
 				<div class="setting-row">
 					<div class="setting-label">Music Volume</div>
 					<div class="vol-bar">
+						<div class="vol-mute @(MusicVolume == 0 ? "active" : "")"
+						     onclick=@(() => SetMusicVolume( 0f ))>×</div>
 						@for ( int i = 0; i < 10; i++ )
 						{
 							var step = i;
@@ -49,6 +53,8 @@
 				<div class="setting-row">
 					<div class="setting-label">Sound Effects</div>
 					<div class="vol-bar">
+						<div class="vol-mute @(SfxVolume == 0 ? "active" : "")"
+						     onclick=@(() => SetSfxVolume( 0f ))>×</div>
 						@for ( int i = 0; i < 10; i++ )
 						{
 							var step = i;

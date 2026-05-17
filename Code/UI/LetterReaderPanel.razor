@@ -1,0 +1,190 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+@* Letter reader sub-modal — pops over LetterboxPanel when the player
+   clicks READ on any letter row. Layout mirrors TutorialPanel
+   (badge / title / body of stacked .line rows / footer button) so the
+   yoga wrapped-text bug is dodged: every text node is a short nowrap
+   row that comfortably fits inside the fixed window width. *@
+
+<root class="@(IsOpen ? "open" : "closed")">
+	@if ( IsOpen )
+	{
+		<div class="backdrop" onclick=@Close></div>
+		<div class="window">
+			<div class="body">
+				<div class="line opening">Dear S&amp;Box Game Studio,</div>
+				@* Body word-wrapped in C# (yoga doesn't render
+				   white-space: normal cleanly — overlapped lines bug).
+				   Each chunk is a separate nowrap row. Both the game
+				   title AND the requested-genre (quest letters only)
+				   get bolded via inline <span class="game-title">. *@
+				@foreach ( var line in WrappedBody )
+				{
+					var segments = TokenizeLine( line );
+					<div class="line body-line">
+						@foreach ( var seg in segments )
+						{
+							if ( seg.Bold )
+							{
+								<span class="game-title">@seg.Text</span>
+							}
+							else
+							{
+								@seg.Text
+							}
+						}
+					</div>
+				}
+				@if ( Subject.IsQuest && Subject.QuestGenre is { } qg )
+				{
+					<div class="effect-card quest">
+						<div class="effect-line title">QUEST ADDED</div>
+						<div class="effect-line detail">Make a @(GenreName(qg)) game next</div>
+						<div class="effect-line bonus">+20% sales when shipped</div>
+					</div>
+				}
+				else if ( Subject.IsDiscovery && Subject.SynergyA is { } sa && Subject.SynergyB is { } sb )
+				{
+					<div class="effect-card discovery">
+						<div class="effect-line title">SYNERGY NOTICED</div>
+						<div class="effect-line detail">@(GenreName(sa)) + @(GenreName(sb))</div>
+						<div class="effect-line bonus">No effect — just a fan's hint</div>
+					</div>
+				}
+				else
+				{
+					<div class="effect-card motivation">
+						<div class="effect-line title">TEAM INSPIRED</div>
+						<div class="effect-line detail">Increased chance of an innovative mood</div>
+						<div class="effect-line bonus">For 14 in-game days</div>
+					</div>
+				}
+				<div class="line closing">From,</div>
+				<div class="line signature">@Subject.SenderName</div>
+			</div>
+			<div class="footer">
+				<div class="btn begin" onclick=@Close>Done</div>
+			</div>
+		</div>
+	}
+</root>
+
+@code {
+	private bool       IsOpen  => Letterbox.Instance?.IsReadingLetter ?? false;
+	private FanLetter  Subject => Letterbox.Instance?.CurrentlyReading;
+
+	private void Close() => Letterbox.Instance?.StopReading();
+
+	private string GenreName( GameGenre g ) => GameGenres.Get( g )?.Name ?? g.ToString();
+
+	/// Greedy word-wrap of <see cref="FanLetter.Body"/> into chunks that
+	/// each fit on a single nowrap line at the card's text-width budget.
+	/// 36 chars matches the narrower 520px card (424px content area at
+	/// 15px font ≈ 40 chars; trim to 36 for variable-width safety).
+	private const int MaxCharsPerLine = 36;
+
+	private List<string> WrappedBody
+	{
+		get
+		{
+			var lines = new List<string>();
+			var body  = Subject?.Body ?? "";
+			if ( body.Length == 0 ) return lines;
+
+			string current = "";
+			foreach ( var word in body.Split( ' ' ) )
+			{
+				if ( word.Length == 0 ) continue;
+				int prospective = current.Length
+					+ (current.Length > 0 ? 1 : 0)
+					+ word.Length;
+				if ( prospective > MaxCharsPerLine && current.Length > 0 )
+				{
+					lines.Add( current );
+					current = "";
+				}
+				current = current.Length > 0 ? current + " " + word : word;
+			}
+			if ( current.Length > 0 ) lines.Add( current );
+			return lines;
+		}
+	}
+
+	/// One rendered chunk of a body line — either plain text or a
+	/// bolded segment. Used to splice game titles + requested-genre
+	/// names into the line as `<span class="game-title">` runs.
+	private sealed record Segment( string Text, bool Bold );
+
+	/// Walk the line left-to-right, splitting whenever any of the
+	/// "bold keywords" (game title, requested-genre name) is hit.
+	/// Each match becomes its own bold segment; everything else is
+	/// plain. Greedy on the earliest-occurring keyword at each step.
+	private List<Segment> TokenizeLine( string line )
+	{
+		var segments = new List<Segment>();
+		if ( string.IsNullOrEmpty( line ) ) return segments;
+
+		// Build the keyword list per-letter. Title is always bold;
+		// requested-genre is bold on quest letters; both synergy genres
+		// are bold on discovery letters. Skip any that duplicate the
+		// title (rare — paranoid guard).
+		var keywords = new List<string>();
+		var title    = Subject?.GameTitle ?? "";
+		if ( !string.IsNullOrEmpty( title ) )
+			keywords.Add( title );
+		if ( Subject is { IsQuest: true, QuestGenre: { } qg } )
+		{
+			var genreName = GameGenres.Get( qg )?.Name ?? qg.ToString();
+			if ( !string.IsNullOrEmpty( genreName ) && genreName != title )
+				keywords.Add( genreName );
+		}
+		if ( Subject is { IsDiscovery: true } )
+		{
+			if ( Subject.SynergyA is { } sa )
+			{
+				var n = GameGenres.Get( sa )?.Name ?? sa.ToString();
+				if ( !string.IsNullOrEmpty( n ) && n != title ) keywords.Add( n );
+			}
+			if ( Subject.SynergyB is { } sb )
+			{
+				var n = GameGenres.Get( sb )?.Name ?? sb.ToString();
+				if ( !string.IsNullOrEmpty( n ) && n != title ) keywords.Add( n );
+			}
+		}
+
+		int pos = 0;
+		while ( pos < line.Length )
+		{
+			int    earliestIdx = -1;
+			string earliestKw  = null;
+			foreach ( var kw in keywords )
+			{
+				int idx = line.IndexOf( kw, pos );
+				if ( idx < 0 ) continue;
+				if ( earliestIdx < 0 || idx < earliestIdx )
+				{
+					earliestIdx = idx;
+					earliestKw  = kw;
+				}
+			}
+
+			if ( earliestIdx < 0 )
+			{
+				segments.Add( new Segment( line.Substring( pos ), false ) );
+				break;
+			}
+
+			if ( earliestIdx > pos )
+				segments.Add( new Segment( line.Substring( pos, earliestIdx - pos ), false ) );
+			segments.Add( new Segment( earliestKw, true ) );
+			pos = earliestIdx + earliestKw.Length;
+		}
+		return segments;
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		IsOpen,
+		Subject?.Id );
+}

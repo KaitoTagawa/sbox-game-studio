@@ -129,7 +129,7 @@ public static class InventoryCatalogue
 			Price               = 500,
 			Category            = ItemCategory.Amenities,
 			Slot                = SlotKind.Decoration,
-			StatBoost           = 10,
+			StatBoost           = 6,
 			RequiredAchievement = null,
 			Hidden              = true,   // scene authoring TBD
 		},
@@ -140,7 +140,7 @@ public static class InventoryCatalogue
 			Price               = 2_500,
 			Category            = ItemCategory.Amenities,
 			Slot                = SlotKind.Decoration,
-			StatBoost           = 50,
+			StatBoost           = 15,
 			RequiredItems       = new[] { ItemKind.LoungeCarpet1 },
 			RequiredAchievement = null,
 		},
@@ -158,7 +158,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Decoration,
 			FillsAllMatchingSlots = true,
-			StatBoost           = 6,
+			StatBoost           = 4,
 			RequiredAchievement = null,
 		},
 		new() {
@@ -172,7 +172,7 @@ public static class InventoryCatalogue
 			// the player's first taste of the studio-wide-boost concept.
 			// Dollar-per-stat being top-of-class is the point: it gives
 			// a satisfying "this matters" moment on the very first buy.
-			StatBoost           = 2,
+			StatBoost           = 1,
 			RequiredAchievement = null,
 		},
 
@@ -192,7 +192,7 @@ public static class InventoryCatalogue
 			// efficient than an Elite mount. Reduced 8 → 3 so the Server
 			// reads as "another piece of office infrastructure" not "the
 			// best item in the game".
-			StatBoost           = 6,
+			StatBoost           = 4,
 			RequiredAchievement = AchievementId.Hire8,
 			Hidden              = true,   // not yet wired to gameplay
 		},
@@ -208,7 +208,7 @@ public static class InventoryCatalogue
 			Price               = 1_500,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.LoungeCarpet1,
-			StatBoost           = 30,
+			StatBoost           = 10,
 			RequiredItems       = new[] { ItemKind.PottedPlant },
 			RequiredAchievement = null,
 		},
@@ -225,7 +225,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.LoungeChair,
 			FillsAllMatchingSlots = true,
-			StatBoost           = 100,
+			StatBoost           = 20,
 			RequiredItems       = new[] { ItemKind.LoungeCarpet1 },
 			RequiredAchievement = null,
 		},
@@ -236,7 +236,7 @@ public static class InventoryCatalogue
 			Price               = 10_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.LoungeCarpet2,
-			StatBoost           = 200,
+			StatBoost           = 25,
 			RequiredItems       = new[]
 			{
 				ItemKind.LoungeCarpet1,
@@ -254,7 +254,7 @@ public static class InventoryCatalogue
 			Price               = 15_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Bookshelf,
-			StatBoost           = 300,
+			StatBoost           = 30,
 			RequiredItems       = new[] { ItemKind.LoungeCarpet2 },
 			RequiredAchievement = null,
 		},
@@ -265,7 +265,7 @@ public static class InventoryCatalogue
 			Price               = 25_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Bookshelf,
-			StatBoost           = 500,
+			StatBoost           = 40,
 			RequiredItems       = new[] { ItemKind.LoungeCarpet2, ItemKind.Bookshelf1 },
 			RequiredAchievement = null,
 		},
@@ -276,7 +276,7 @@ public static class InventoryCatalogue
 			Price               = 30_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.TV,
-			StatBoost           = 600,
+			StatBoost           = 50,
 			RequiredItems       = new[] { ItemKind.LoungeCarpet2 },
 			RequiredAchievement = null,
 		},
@@ -292,7 +292,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Couch,
 			FillsAllMatchingSlots = true,
-			StatBoost           = 400,
+			StatBoost           = 35,
 			RequiredItems       = new[] { ItemKind.LoungeCarpet2 },
 			RequiredAchievement = null,
 		},
@@ -311,7 +311,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Amenities,
 			Slot                = SlotKind.Toilet,
 			FillsAllMatchingSlots = true,
-			StatBoost           = 2_000,
+			StatBoost           = 100,
 			RequiredItems       = new[]
 			{
 				ItemKind.LoungeCarpet1,
@@ -338,7 +338,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = null,
 		},
@@ -349,7 +349,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = AchievementId.Ship3Games,
 		},
@@ -360,7 +360,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = AchievementId.Hire5,
 		},
@@ -371,7 +371,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = AchievementId.Earn10k,
 		},
@@ -382,7 +382,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = AchievementId.Players100,
 		},
@@ -393,7 +393,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = AchievementId.Earn100k,
 		},
@@ -404,7 +404,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = AchievementId.Hire10,
 		},
@@ -415,7 +415,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = AchievementId.Ship10Games,
 		},
@@ -426,7 +426,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = AchievementId.Players10k,
 		},
@@ -437,7 +437,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = AchievementId.Earn1M,
 		},
@@ -448,7 +448,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = AchievementId.DiscoverAllAbilities,
 		},
@@ -459,7 +459,7 @@ public static class InventoryCatalogue
 			Price               = 2_000,
 			Category            = ItemCategory.Decoration,
 			Slot                = SlotKind.Book,
-			StatBoost           = 40,
+			StatBoost           = 3,
 			RequiredItems       = new[] { ItemKind.Bookshelf1 },
 			RequiredAchievement = AchievementId.Players1M,
 		},
@@ -483,7 +483,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Equipment,
 			Slot                = SlotKind.Computer,
 			Tier                = 1,
-			StatBoost           = 90,
+			StatBoost           = 24,
 			RequiredAchievement = null,
 		},
 		new() {
@@ -494,7 +494,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Equipment,
 			Slot                = SlotKind.Computer,
 			Tier                = 2,
-			StatBoost           = 180,
+			StatBoost           = 60,
 			RequiredAchievement = AchievementId.ShipFirstGame,
 		},
 		new() {
@@ -505,7 +505,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Equipment,
 			Slot                = SlotKind.Computer,
 			Tier                = 3,
-			StatBoost           = 360,
+			StatBoost           = 100,
 			RequiredAchievement = AchievementId.Ship3Games,
 		},
 
@@ -518,7 +518,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Equipment,
 			Slot                = SlotKind.Monitor,
 			Tier                = 1,
-			StatBoost           = 24,
+			StatBoost           = 8,
 			RequiredAchievement = null,
 		},
 		new() {
@@ -529,7 +529,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Equipment,
 			Slot                = SlotKind.Monitor,
 			Tier                = 2,
-			StatBoost           = 48,
+			StatBoost           = 16,
 			RequiredAchievement = AchievementId.ShipFirstGame,
 		},
 		new() {
@@ -540,7 +540,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Equipment,
 			Slot                = SlotKind.Monitor,
 			Tier                = 3,
-			StatBoost           = 96,
+			StatBoost           = 30,
 			RequiredAchievement = AchievementId.Ship3Games,
 		},
 
@@ -553,7 +553,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Workstation,
 			Slot                = SlotKind.Chair,
 			Tier                = 1,
-			StatBoost           = 18,
+			StatBoost           = 6,
 			RequiredAchievement = null,
 		},
 		new() {
@@ -564,7 +564,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Workstation,
 			Slot                = SlotKind.Chair,
 			Tier                = 2,
-			StatBoost           = 36,
+			StatBoost           = 14,
 			RequiredAchievement = AchievementId.ShipFirstGame,
 		},
 		new() {
@@ -575,7 +575,7 @@ public static class InventoryCatalogue
 			Category            = ItemCategory.Workstation,
 			Slot                = SlotKind.Chair,
 			Tier                = 3,
-			StatBoost           = 72,
+			StatBoost           = 30,
 			RequiredAchievement = AchievementId.Ship3Games,
 		},
 
@@ -588,7 +588,7 @@ public static class InventoryCatalogue
 			Kind                = ItemKind.ChocolateBar,
 			Name                = "Chocolate Bar",
 			Description         = "A small treat. Lifts spirits a bit.",
-			Price               = 50,
+			Price               = 25,
 			Category            = ItemCategory.Consumable,
 			Slot                = SlotKind.None,
 			RequiredAchievement = null,
@@ -596,8 +596,11 @@ public static class InventoryCatalogue
 		new() {
 			Kind                = ItemKind.EnergyDrink,
 			Name                = "Energy Drink",
-			Description         = "More likely to be in an innovative mood.",
-			Price               = 800,
+			Description         = "More likely to be in an innovative mood for 30 days.",
+			// Base price — InventoryManager.PriceFor scales it by current
+			// desk count (1 desk = $200, 8 desks = $1,600) so a round of
+			// team-wide buffs costs proportional to studio size.
+			Price               = 200,
 			Category            = ItemCategory.Consumable,
 			Slot                = SlotKind.None,
 			RequiredAchievement = null,
@@ -606,22 +609,25 @@ public static class InventoryCatalogue
 			Kind                = ItemKind.ProteinBar,
 			Name                = "Protein Bar",
 			Description         = "Healthy snack. Steady morale top-up.",
-			Price               = 30,
+			Price               = 15,
 			Category            = ItemCategory.Consumable,
 			Slot                = SlotKind.None,
 			RequiredAchievement = null,
 		},
 
-		// Bad-mood immuniser. Branch in InventoryManager.TryGiveConsumable
-		// calls EmployeeNPC.GrantBadMoodImmunity(30) instead of the morale
-		// bump path. Gated behind 3 lifetime hires — by then the player
-		// has multiple employees that can roll Bad and is starting to feel
-		// the production-disruption pressure the consumable mitigates.
+		// Budget Energy Drink: same Good-mood boost effect, shorter window
+		// (14 days vs 30), half the price. Branch in
+		// InventoryManager.TryGiveConsumable calls
+		// EmployeeNPC.GrantEnergyBoost(14). Restock pacing (monthly +6,
+		// cap 8) is preserved from its former bad-mood-immuniser identity
+		// so the gum stays the stockable "cheap and cheerful" tier.
 		new() {
 			Kind                = ItemKind.ChewingGum,
 			Name                = "Chewing Gum",
-			Description         = "Calms the nerves. Prevents bad mood for 30 days.",
-			Price               = 800,
+			Description         = "More likely to be in an innovative mood for 14 days.",
+			// Base price — half of Energy Drink's $200. InventoryManager.PriceFor
+			// scales it by current desk count (1 desk = $100, 8 desks = $800).
+			Price               = 100,
 			Category            = ItemCategory.Consumable,
 			Slot                = SlotKind.None,
 			RequiredAchievement = null,
@@ -636,7 +642,7 @@ public static class InventoryCatalogue
 			Kind                = ItemKind.SmokeBreak,
 			Name                = "Outsource Everything",
 			Description         = "Hand the remaining work to a contractor. Ships at 70% potential.",
-			Price               = 100,
+			Price               = 50,
 			Category            = ItemCategory.Consumable,
 			Slot                = SlotKind.None,
 			RequiredAchievement = null,
@@ -661,18 +667,14 @@ public static class InventoryCatalogue
 		if ( e.RequiredAchievement is { } id && !Achievements.IsUnlocked( id ) )
 			return false;
 
-		// SmokeBreak (Outsource Everything) is gated to the player's 5th
-		// game onward — they need to have lived through full Production
-		// cycles before they get the skip-the-grind option, otherwise the
-		// tutorial / early-game pacing collapses. No Ship4Games achievement
-		// exists, so the gate lives here as a hardcoded GamesShipped check.
-		if ( kind == ItemKind.SmokeBreak && Achievements.GamesShipped < 4 )
-			return false;
-
-		// ChewingGum (bad-mood immuniser) needs at least 3 lifetime hires.
-		// No Hire3 achievement exists; falls back to the same hardcoded
-		// counter pattern as SmokeBreak above.
-		if ( kind == ItemKind.ChewingGum && Achievements.TotalHires < 3 )
+		// All consumables share a single GamesShipped >= 3 unlock gate
+		// (rebalanced 2026-05-08 — was per-item: SmokeBreak/<4 ships and
+		// ChewingGum/<3 lifetime hires). Three full Production cycles is
+		// enough early-game grounding before the buff/skip toolkit becomes
+		// available. Shop.cs pushes a sticky "consumables unlocked" toast
+		// at the moment of ship #3; ShopPanel clears it on Consumable-tab
+		// click.
+		if ( e.Category == ItemCategory.Consumable && Achievements.GamesShipped < 3 )
 			return false;
 
 		var inv = InventoryManager.Instance;

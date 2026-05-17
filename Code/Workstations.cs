@@ -41,15 +41,7 @@ public sealed class Workstations : Component
 		IsOpen = open;
 		if ( open )
 		{
-			// Mutual exclusion with every other top-level modal — same
-			// pattern Shop / Settings / Gallery / Inventory follow.
-			GameMenu.Instance?.SetOpen( false );
-			Shop.Instance?.SetOpen( false );
-			Settings.Instance?.SetOpen( false );
-			Gallery.Instance?.SetOpen( false );
-			InventoryManager.Instance?.SetOpen( false );
-			TrainingManager.Instance?.SetOpen( false );
-			GameProjectManager.Instance?.SetOpen( false );
+			Modals.CloseAllExcept( this );
 		}
 		else
 		{

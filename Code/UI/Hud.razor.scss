@@ -196,16 +196,20 @@ Hud {
 }
 
 // Fixed-width cell: icon column has a stable footprint and the number box
-// reserves space for up to 4 digits (max pillar score = 1000). Without this
-// the cells reflow as digits grow ("9" → "10" → "100"), which shifts every
-// icon's horizontal position because `justify-content: space-between` keeps
-// the row's edges anchored but redistributes the middle cell.
+// reserves space for up to 5 digits (high-pillar runs blow past 1000 once
+// PM/Hacker/Synergy multipliers stack). Without this the cells reflow as
+// digits grow ("9" → "10" → "100"), which shifts every icon's horizontal
+// position because `justify-content: space-between` keeps the row's edges
+// anchored but redistributes the middle cell. `white-space: nowrap` on the
+// number is the confirmed s&box fix for flex-wrapped text — yoga doesn't
+// resize flex parents around wrapped glyphs, so without it 5-digit values
+// break to a second line even when there's empty space beside them.
 
 .prog-pts-cell {
 	flex-direction: row;
 	align-items: center;
 	gap: 10px;
-	width: 110px;
+	width: 150px;
 	flex-shrink: 0;
 }
 
@@ -220,7 +224,8 @@ Hud {
 	font-size: 28px;
 	font-weight: 800;
 	letter-spacing: 0.5px;
-	min-width: 60px;
+	min-width: 100px;
+	white-space: nowrap;
 }
 
 // ── Notifications stack (normal layer — info / success only) ──────────────
@@ -249,6 +254,12 @@ Hud {
 
 .toast.toast-info    { border: 2px solid rgba( 120, 180, 255, 0.8 ); }
 .toast.toast-success { border: 2px solid rgba(  80, 200, 120, 0.85 ); }
+// Hud renders danger toasts inline (per the kind filter in Hud.razor); the
+// border rules must match NotificationsOverlay.scss or the red outline
+// silently goes missing. Warning toasts route through NotificationsOverlay
+// instead but the rule is kept here for symmetry / future routing changes.
+.toast.toast-warning { border: 2px solid rgba( 255, 185,  40, 0.8 ); }
+.toast.toast-danger  { border: 2px solid rgba( 235,  70,  80, 0.9 ); }
 
 .toast-title {
 	color: white;

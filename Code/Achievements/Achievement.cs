@@ -35,6 +35,16 @@ public enum AchievementId
 
 	// ── Onboarding ─────────────────────────────────────────────────────────
 	TutorialComplete,
+
+	// ── Fan letters (ADR-0003) ────────────────────────────────────────────
+	FirstLetter,
+	Letters10,
+	Letters50,
+
+	// ── Per-game medals (Bronze / Silver / Gold based on highest pillar)
+	FirstBronzeMedal,
+	FirstSilverMedal,
+	FirstGoldMedal,
 }
 
 /// <summary>

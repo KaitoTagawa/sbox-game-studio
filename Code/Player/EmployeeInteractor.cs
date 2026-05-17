@@ -80,20 +80,6 @@ public sealed class EmployeeInteractor : Component
 	{
 		get
 		{
-			// Bad mood: two role-flavored advice lines + exit. One matches
-			// the NPC's RightAdvice (rolled at SetMood), the other doesn't.
-			// Wrong picks leave mood Bad so the player can retry the other.
-			if ( ChatTarget?.Mood == EmployeeMood.Bad )
-			{
-				var labels = EmployeeNPC.AdviceLabels( ChatTarget.Role );
-				return new ReplyOption[]
-				{
-					new( labels[0],          () => OnAdvice( 0 ) ),
-					new( labels[1],          () => OnAdvice( 1 ) ),
-					new( "Catch you later.", CloseChat            ),
-				};
-			}
-
 			if ( ChatSuggestion is { } sg )
 			{
 				// Scale cost with year so the price-tag tracks studio
@@ -276,45 +262,29 @@ public sealed class EmployeeInteractor : Component
 		SelectedReplyIndex = 0;
 		_showingGiftPicker = false;
 
-		// Set up the line shown the moment chat opens. Bad mood doesn't
-		// auto-heal anymore — the player has to pick the right advice
-		// (advice/advice/exit reply set, see ReplyOptions below). Good mood
-		// snapshots the suggestion so accept/decline still works even if
-		// mood resets mid-chat (e.g. on ship).
-		switch ( npc.Mood )
+		// Set up the line shown the moment chat opens. Good mood snapshots
+		// the suggestion so accept/decline still works even if mood resets
+		// mid-chat (e.g. on ship).
+		if ( npc.Mood == EmployeeMood.Good && npc.PendingSuggestion is { } sg )
 		{
-			case EmployeeMood.Bad:
-				ChatLine       = npc.PickBadMoodGreeting();
-				ChatSuggestion = null;
-				break;
-			case EmployeeMood.Good when npc.PendingSuggestion is { } sg:
-				ChatLine       = sg.Text;
-				ChatSuggestion = sg;
-				break;
-			default:
-				ChatLine       = npc.PickGreeting();
-				ChatSuggestion = null;
-				break;
+			ChatLine       = sg.Text;
+			ChatSuggestion = sg;
+		}
+		else
+		{
+			ChatLine       = npc.PickGreeting();
+			ChatSuggestion = null;
 		}
 
-		// First-ever mood toasts are pushed sticky (duration = 0) so the
-		// player can't miss the new mechanic — clear them now that the
-		// player has acknowledged the prompt by opening chat with the
-		// moody NPC. The flag flip persists via TutorialSave so future
-		// toasts auto-expire normally.
+		// First-ever Good-mood toast is pushed sticky (duration = 0) so the
+		// player can't miss the new mechanic — clear it now that the player
+		// has acknowledged the prompt by opening chat. The flag flip
+		// persists via TutorialSave so future toasts auto-expire normally.
 		var tut = TutorialManager.Instance;
-		if ( tut is not null )
+		if ( tut is not null && npc.Mood == EmployeeMood.Good && !tut.FirstGoodMoodToastSeen )
 		{
-			if ( npc.Mood == EmployeeMood.Good && !tut.FirstGoodMoodToastSeen )
-			{
-				tut.FirstGoodMoodToastSeen = true;
-				Notifications.RemoveByTag( "first-good-mood" );
-			}
-			else if ( npc.Mood == EmployeeMood.Bad && !tut.FirstBadMoodToastSeen )
-			{
-				tut.FirstBadMoodToastSeen = true;
-				Notifications.RemoveByTag( "first-bad-mood" );
-			}
+			tut.FirstGoodMoodToastSeen = true;
+			Notifications.RemoveByTag( "first-good-mood" );
 		}
 
 		GameManager.RefreshPlayerLock();
@@ -486,29 +456,6 @@ public sealed class EmployeeInteractor : Component
 		SelectedReplyIndex = 0;
 	}
 
-	/// Bad-mood advice handler. Picking the matching index heals; the
-	/// other one shows a "still stuck" line and leaves Mood = Bad so
-	/// the player can retry the other choice without re-opening chat.
-	void OnAdvice( int chosen )
-	{
-		var npc = ChatTarget;
-		if ( npc is null ) return;
-
-		if ( chosen == npc.RightAdvice )
-		{
-			ChatLine = npc.RightAdviceResponse();
-			npc.SetMood( EmployeeMood.Neutral, silent: true );
-		}
-		else
-		{
-			ChatLine = npc.WrongAdviceResponse();
-			// Mood stays Bad. ReplyOptions keeps showing both advice rows
-			// + "Catch you later" so the player can pick the other one.
-		}
-
-		SelectedReplyIndex = 0;
-	}
-
 	static string PillarLabel( ProjectPillar p ) => p switch
 	{
 		ProjectPillar.Design   => "Design",
@@ -526,22 +473,18 @@ public sealed class EmployeeInteractor : Component
 		var n = options.Count;
 		if ( n <= 0 ) return;
 
-		// Navigation. Both the WSAD movement actions and raw arrow-key
-		// names work — Input.Pressed accepts either action names from
-		// Input.config or raw key tokens for unmapped keys.
-		if ( Input.Pressed( "Forward" ) || Input.Pressed( "up" ) )
+		// Navigation. Only registered Input.config actions are accepted —
+		// raw key tokens like "up" / "down" / "enter" trigger
+		// "Couldn't find Input Action" warnings on this s&box build.
+		// W/S handles list nav; Enter is bound to the Chat action.
+		if ( Input.Pressed( "Forward" ) )
 			SelectedReplyIndex = (SelectedReplyIndex - 1 + n) % n;
 
-		if ( Input.Pressed( "Backward" ) || Input.Pressed( "down" ) )
+		if ( Input.Pressed( "Backward" ) )
 			SelectedReplyIndex = (SelectedReplyIndex + 1) % n;
 
-		// Confirm: E (Use action) or Enter. "Chat" action is bound to
-		// Enter in Input.config; raw "enter" token is a belt-and-braces
-		// fallback in case Input.Pressed only accepts action names on
-		// this s&box build.
-		if ( Input.Pressed( "Use" )
-		  || Input.Pressed( "Chat" )
-		  || Input.Pressed( "enter" ) )
+		// Confirm: E (Use action) or Enter (Chat action).
+		if ( Input.Pressed( "Use" ) || Input.Pressed( "Chat" ) )
 			ConfirmSelected();
 	}
 

@@ -67,10 +67,10 @@ public enum ItemKind
 	/// scales exponentially per use; see InventoryManager.PriceFor.
 	SmokeBreak       = 63,
 
-	/// Bad-mood immuniser. Given to a hire, instantly heals current Bad mood
-	/// (if any) and grants 30 in-game days where Bad-mood rolls are
-	/// suppressed; Good rolls still fire normally. Gated behind 3 lifetime
-	/// hires (see InventoryCatalogue.IsUnlocked).
+	/// Budget Good-mood booster. Same effect as <see cref="EnergyDrink"/>
+	/// (P(Good) × 1.5 per tick) but the buff window is 14 in-game days
+	/// instead of 30, and the base price is half. Shares the consumable
+	/// unlock gate (3 lifetime ships).
 	ChewingGum       = 64,
 
 	// ── Office decoration (single SKUs) ─────────────────────────────────

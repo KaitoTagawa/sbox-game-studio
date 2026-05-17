@@ -92,8 +92,8 @@ public sealed class Gallery : Component
 	[Property, Description( "First-game baseline average session length, in minutes. Calibrated to the 14-min median play time benchmark for Steam indie demos." )]
 	public float BaseMinutes { get; set; } = 10f;
 
-	[Property, Description( "Revenue per minute of total play time. $0.02/min = $1 per 50 minutes - divided by 2.5 from 0.05 (which was already halved from 0.10) so earning money is significantly harder, forcing the player to ship more / better-reviewed games to grow the studio." )]
-	public float PricePerMinute { get; set; } = 0.02f;
+	[Property, Description( "Revenue per minute of total play time. $0.018/min — 0.016 → 0.018 on 2026-05-11 for a clean uniform +12.5% revenue lift. Prior step: 0.02 → 0.016 on 2026-05-09 (uniform −20%, paired with salary +3% lift and the buff stack that lets mid-tier teams hit revenue saturation). Pre-calibration history: 0.10 → 0.05 → 0.02 → 0.016 → 0.018." )]
+	public float PricePerMinute { get; set; } = 0.018f;
 
 	// Cumulative release-curve, precomputed once at startup. Index 0..100
 	// covers fraction-of-window in 1% increments; values are the cumulative
@@ -218,6 +218,10 @@ public sealed class Gallery : Component
 		// first-launch flow is up. (Tutorial finishes before anything ships
 		// in practice, but defensive against save-loaded edge cases.)
 		if ( TutorialManager.Instance is { IsBlockingTime: true } ) return;
+
+		// Modal / Escape-menu pause: no sales accrual while the player is
+		// in a configuration UI or the engine is paused.
+		if ( GameManager.Instance is { IsTimePaused: true } )       return;
 
 		float dt = Time.Delta * (GameManager.Instance?.TimeMultiplier ?? 1f);
 		if ( dt <= 0f )                return;
@@ -344,7 +348,17 @@ public sealed class Gallery : Component
 		int   gmYear    = GameManager.Instance?.Year ?? 2026;
 		float yearScale = 1f + (gmYear - 2026) * 0.20f;
 
-		long  lifetimePlayers   = (long)MathF.Round( BasePlayers * playerMult * revPlayerBoost * genreRev * yearScale );
+		// Quest fulfillment (ADR-0003 Phase 3, stacked 2026-05-10):
+		// every open fan-letter quest whose genre matches one of this
+		// game's tags fulfills together. Each match adds +20% to
+		// lifetimePlayers (max +60% since a game carries up to 3
+		// genres and the dedup rule guarantees 1 quest per genre).
+		// Multi-quest ships also schedule a press follow-up letter
+		// 14 in-game days out — see Letterbox.TryFulfillQuests.
+		int   fulfilledCount = Letterbox.Instance?.TryFulfillQuests( game.Genres, game.Title ) ?? 0;
+		float questBonus     = 1f + 0.20f * fulfilledCount;
+
+		long  lifetimePlayers   = (long)MathF.Round( BasePlayers * playerMult * revPlayerBoost * genreRev * yearScale * questBonus );
 		// Average sessions per player — multiplier-scaled then capped at
 		// MaxSessionsPerPlayer. The ceiling represents "≤ 1 session/day for
 		// a fully engaged fan over a 6-month tail" — even the best games can't
@@ -450,10 +464,7 @@ public sealed class Gallery : Component
 		IsOpen = open;
 		if ( open )
 		{
-			GameMenu.Instance?.SetOpen( false );
-			Shop.Instance?.SetOpen( false );
-			Settings.Instance?.SetOpen( false );
-			GameProjectManager.Instance?.SetOpen( false );
+			Modals.CloseAllExcept( this );
 
 			// First-ever open: jump straight to the Past Games tab so the
 			// player sees their freshly-shipped game (which is why the
@@ -490,11 +501,32 @@ public sealed class Gallery : Component
 		game.ReleaseActive         = true;
 		game.WindowElapsedFraction = 0f;
 
+		// Stamp the per-game medal based on the highest pillar score. The
+		// cash bonus + notification + achievement record fire here so the
+		// player sees the reward exactly at ship time.
+		//
+		// One-shot per tier per run: if this tier has ALREADY been awarded
+		// in the current run, downgrade the stamp to None so the game card
+		// doesn't display a duplicate trophy. The first Bronze ship keeps
+		// its Bronze badge; subsequent Bronze-qualifying ships render with
+		// no medal at all. Same rule for Silver and Gold. Counters reset
+		// on new-game / restart so each fresh run can claim each tier once.
+		var tentativeMedal = GameMedalExtensions.MedalFor(
+			game.DesignPoints, game.SoundPoints, game.GraphicsPoints );
+		game.Medal = IsMedalTierAlreadyAwardedThisRun( tentativeMedal )
+			? GameMedal.None
+			: tentativeMedal;
+		AwardMedal( game );
+
 		_games.Add( game );
 
 		// Drive the Ship*Games achievements (which in turn unlock the higher
 		// JobPosting tiers — Career Site behind 3 ships, etc.).
 		Achievements.RecordShippedGame();
+
+		// Submit the four ship-time leaderboard stats (ADR-0002). Wrapped
+		// internally in try/catch so a platform failure can't break ship.
+		Leaderboards.SubmitOnShip( game );
 
 		OnGameShipped?.Invoke();
 	}
@@ -503,6 +535,78 @@ public sealed class Gallery : Component
 	{
 		if ( trophy is null ) return;
 		_trophies.Add( trophy );
+	}
+
+	/// Pay out the medal cash bonus + push the celebratory notification +
+	/// hand off to <see cref="Achievements"/> so the FirstBronzeMedal /
+	/// FirstSilverMedal / FirstGoldMedal entries unlock on first sight of
+	/// each tier. No-op for <see cref="GameMedal.None"/> (game didn't hit
+	/// even the Bronze threshold).
+	///
+	/// One-shot per tier per run: the FIRST Bronze ship in a run fires the
+	/// full ceremony (cash + popup + bonus drop); subsequent Bronze ships
+	/// in the same run silent-return. Same rule for Silver and Gold. Each
+	/// shipped game's medal is still recorded against the game itself
+	/// (via the caller's <see cref="ShippedGame.Medal"/>), so the Trophies
+	/// tab keeps showing every medaled ship — only the per-tier celebration
+	/// is one-shot. Counters reset on new-game / restart.
+	void AwardMedal( ShippedGame game )
+	{
+		if ( game is null )                     return;
+		if ( game.Medal == GameMedal.None )     return;
+		if ( IsMedalTierAlreadyAwardedThisRun( game.Medal ) ) return;
+
+		long cash = game.Medal.CashReward();
+		long before = GameManager.Instance?.Money ?? -1;
+		GameManager.Instance?.AddMoney( cash );
+		long after  = GameManager.Instance?.Money ?? -1;
+		// DEBUG: pin down the "medal cash didn't arrive" mystery. Drop
+		// once confirmed working.
+		Log.Info( $"[Medal] {game.Medal} on \"{game.Title}\" → AddMoney({cash}); wallet {before} → {after}" );
+
+		// Tier-specific bonus inventory drops. Bronze ships a small
+		// consolation pack of Chewing Gum (the budget Good-mood booster)
+		// so a fresh studio can prime a few buffs without dipping into
+		// cash. Silver / Gold reserved for richer drops once balance
+		// shakes out.
+		string bonusBlurb = "";
+		if ( game.Medal == GameMedal.Bronze )
+		{
+			InventoryManager.Instance?.GrantConsumable( ItemKind.ChewingGum, 3 );
+			bonusBlurb = " · +3 Chewing Gum";
+		}
+
+		Notifications.Push(
+			$"{game.Medal.Icon()} {game.Medal.DisplayName()} awarded",
+			$"\"{game.Title}\" earned a {game.Medal.DisplayName().ToLower()} — +${cash:N0}{bonusBlurb}.",
+			"success", duration: 10f );
+
+		Achievements.RecordMedalAwarded( game.Medal );
+	}
+
+	/// True if a Bronze / Silver / Gold ceremony has already fired in the
+	/// current run — used by <see cref="AwardMedal"/> to keep each tier's
+	/// celebration a one-shot. Reads the Achievements counters directly
+	/// (they're bumped inside AwardMedal itself, so 1+ means "we already
+	/// fired the full block once this run"). Resets on
+	/// <see cref="Achievements.ResetForNewRun"/>.
+	static bool IsMedalTierAlreadyAwardedThisRun( GameMedal m ) => m switch
+	{
+		GameMedal.Bronze => Achievements.BronzeMedalsAwarded >= 1,
+		GameMedal.Silver => Achievements.SilverMedalsAwarded >= 1,
+		GameMedal.Gold   => Achievements.GoldMedalsAwarded   >= 1,
+		_                => false,
+	};
+
+	/// Counts of medals awarded across this run, by tier. Drives the
+	/// Trophies tab summary header. Recomputed on the fly from the live
+	/// shipped-games list so save/load round-trips for free.
+	public int MedalCount( GameMedal tier )
+	{
+		int n = 0;
+		foreach ( var g in _games )
+			if ( g.Medal == tier ) n++;
+		return n;
 	}
 
 	/// Wipe shipped games + trophies (new save / debug). Named
@@ -679,6 +783,86 @@ public sealed record ShippedGame
 			return $"{m[idx]} Y{ShipYear}";
 		}
 	}
+
+	/// Medal awarded at ship time, based on the highest of
+	/// <see cref="DesignPoints"/> / <see cref="SoundPoints"/> /
+	/// <see cref="GraphicsPoints"/>. Defaults to <see cref="GameMedal.None"/>
+	/// for legacy ships that pre-date the medal system; live ships set this
+	/// in <see cref="Gallery.RecordShippedGame"/>. Set (not init) so save
+	/// deserialisation can write it directly per ADR-0001.
+	public GameMedal             Medal               { get; set; } = GameMedal.None;
+}
+
+/// Per-game medal tier awarded at ship time. Highest pillar score crosses
+/// a threshold → the matching tier wins (no stacking — Gold supersedes
+/// Silver/Bronze for the same game).
+///   Bronze: any pillar ≥ 200,  $500 cash bonus
+///   Silver: any pillar ≥ 500,  $2,000 cash bonus
+///   Gold:   any pillar ≥ 1000, $10,000 cash bonus
+public enum GameMedal
+{
+	None   = 0,
+	Bronze = 1,
+	Silver = 2,
+	Gold   = 3,
+}
+
+public static class GameMedalExtensions
+{
+	/// Pillar score required to qualify for each tier. Indices line up
+	/// with <see cref="GameMedal"/> values; index 0 (None) is unused.
+	public const int BronzeThreshold = 200;
+	public const int SilverThreshold = 500;
+	public const int GoldThreshold   = 1000;
+
+	/// Cash bonus paid into <see cref="GameManager.Money"/> on award.
+	public const long BronzeReward = 500;
+	public const long SilverReward = 2_000;
+	public const long GoldReward   = 10_000;
+
+	/// Highest tier whose threshold is crossed by any of the three pillars.
+	/// Returns <see cref="GameMedal.None"/> when no pillar ≥ Bronze.
+	public static GameMedal MedalFor( int designPoints, int soundPoints, int graphicsPoints )
+	{
+		int max = System.Math.Max( designPoints, System.Math.Max( soundPoints, graphicsPoints ) );
+		if ( max >= GoldThreshold )   return GameMedal.Gold;
+		if ( max >= SilverThreshold ) return GameMedal.Silver;
+		if ( max >= BronzeThreshold ) return GameMedal.Bronze;
+		return GameMedal.None;
+	}
+
+	public static long CashReward( this GameMedal m ) => m switch
+	{
+		GameMedal.Bronze => BronzeReward,
+		GameMedal.Silver => SilverReward,
+		GameMedal.Gold   => GoldReward,
+		_                => 0,
+	};
+
+	public static string DisplayName( this GameMedal m ) => m switch
+	{
+		GameMedal.Bronze => "Bronze Medal",
+		GameMedal.Silver => "Silver Medal",
+		GameMedal.Gold   => "Gold Medal",
+		_                => "",
+	};
+
+	public static string Icon( this GameMedal m ) => m switch
+	{
+		GameMedal.Bronze => "🥉",
+		GameMedal.Silver => "🥈",
+		GameMedal.Gold   => "🥇",
+		_                => "",
+	};
+
+	/// CSS modifier so cards / badges can pick the right accent colour.
+	public static string BadgeClass( this GameMedal m ) => m switch
+	{
+		GameMedal.Bronze => "medal-bronze",
+		GameMedal.Silver => "medal-silver",
+		GameMedal.Gold   => "medal-gold",
+		_                => "",
+	};
 }
 
 /// <summary>

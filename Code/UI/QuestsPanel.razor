@@ -1,0 +1,125 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+@* Quest dashboard (ADR-0003 Phase 3). Read-only view of every
+   quest letter the studio has received this run — open quests
+   (still waiting on a matching ship) on top, fulfilled quests
+   below as a history strip. The actual letter copy is read in
+   the Letterbox; this panel exists to make it easy to see "what
+   genre should I ship next?" at a glance. *@
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop" onclick=@Close></div>
+	<div class="window">
+		<div class="header">
+			<div class="title">QUESTS</div>
+			<div class="header-meta">@HeaderMetaLabel</div>
+			<div class="close-btn" onclick=@Close>×</div>
+		</div>
+
+		<div class="body">
+			@if ( OpenQuests.Count == 0 && FulfilledQuests.Count == 0 )
+			{
+				<div class="empty">No requests yet</div>
+			}
+			else
+			{
+				@if ( OpenQuests.Count > 0 )
+				{
+					<div class="section-head">OPEN REQUESTS</div>
+					@foreach ( var q in OpenQuests )
+					{
+						var quest = q;
+						<div class="quest-row open">
+							<div class="row-info">
+								<div class="row-sender">@quest.SenderName</div>
+								<div class="row-detail">wants a <span class="genre">@GenreName( quest )</span> game next</div>
+							</div>
+							<div class="row-bonus">+20%</div>
+						</div>
+					}
+				}
+
+				@if ( FulfilledQuests.Count > 0 )
+				{
+					<div class="section-head fulfilled-head">FULFILLED</div>
+					@foreach ( var q in FulfilledQuests )
+					{
+						var quest = q;
+						<div class="quest-row fulfilled">
+							<div class="row-info">
+								<div class="row-sender">@quest.SenderName</div>
+								<div class="row-detail">wanted <span class="genre">@GenreName( quest )</span> — got <span class="game">@quest.FulfilledByGame</span></div>
+							</div>
+							<div class="row-status">DONE</div>
+						</div>
+					}
+				}
+			}
+		</div>
+
+		<div class="footer">
+			Ship a game in a requested genre to fulfill the oldest matching
+			quest and earn a +20% lifetime-sales bonus on that release.
+		</div>
+	</div>
+</root>
+
+@code {
+	private bool IsOpen => Letterbox.Instance?.IsQuestOpen ?? false;
+
+	private void Close() => Letterbox.Instance?.SetQuestOpen( false );
+
+	/// All quest letters this run, sorted into open + fulfilled buckets.
+	/// Oldest-first within each bucket so the order matches fulfillment
+	/// priority (Letterbox.TryFulfillQuest also iterates oldest-first).
+	private List<FanLetter> OpenQuests
+	{
+		get
+		{
+			var list = new List<FanLetter>();
+			var lb   = Letterbox.Instance;
+			if ( lb is null ) return list;
+			foreach ( var l in lb.Letters )
+				if ( l.IsQuest && !l.QuestFulfilled )
+					list.Add( l );
+			return list;
+		}
+	}
+
+	private List<FanLetter> FulfilledQuests
+	{
+		get
+		{
+			var list = new List<FanLetter>();
+			var lb   = Letterbox.Instance;
+			if ( lb is null ) return list;
+			foreach ( var l in lb.Letters )
+				if ( l.IsQuest && l.QuestFulfilled )
+					list.Add( l );
+			return list;
+		}
+	}
+
+	private static string GenreName( FanLetter letter )
+	{
+		if ( letter.QuestGenre is not { } g ) return "—";
+		return GameGenres.Get( g )?.Name ?? g.ToString();
+	}
+
+	private string HeaderMetaLabel
+	{
+		get
+		{
+			int n = OpenQuests.Count;
+			if ( n == 0 ) return "";
+			return n == 1 ? "1 open" : $"{n} open";
+		}
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		IsOpen,
+		OpenQuests.Count,
+		FulfilledQuests.Count );
+}

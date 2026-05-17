@@ -15,6 +15,23 @@ public static class Achievements
 	public static long PeakMonthlyPlayers { get; private set; }
 	public static int  GamesShipped       { get; private set; }
 
+	/// Highest <see cref="GameManager.Money"/> ever held during this run.
+	/// Drives the "Peak Wallet" leaderboard (ADR-0002). Updated per-frame
+	/// from <see cref="GameManager.OnUpdate"/> via <see cref="RecordBalance"/>.
+	public static long PeakBalance        { get; private set; }
+
+	/// Lifetime fan letters received this run. Bumped from
+	/// <see cref="Letterbox.SpawnLetter"/> via <see cref="RecordLetterReceived"/>.
+	/// Drives the FirstLetter / Letters10 / Letters50 achievements (ADR-0003).
+	public static int  LettersReceived    { get; private set; }
+
+	/// Per-tier counts of medals awarded this run. Bumped from
+	/// <see cref="Gallery.RecordShippedGame"/> via <see cref="RecordMedalAwarded"/>.
+	/// Drive the FirstBronzeMedal / FirstSilverMedal / FirstGoldMedal achievements.
+	public static int  BronzeMedalsAwarded { get; private set; }
+	public static int  SilverMedalsAwarded { get; private set; }
+	public static int  GoldMedalsAwarded   { get; private set; }
+
 	/// Distinct abilities seen on at least one hired employee.
 	public static HashSet<EmployeeAbility> AbilitiesDiscovered { get; } = new();
 
@@ -87,6 +104,41 @@ public static class Achievements
 		EvaluateAll();
 	}
 
+	/// Per-frame ratchet for <see cref="PeakBalance"/>. Cheap — one long
+	/// compare and (rarely) one assignment. Called from
+	/// <see cref="GameManager.OnUpdate"/>. Does NOT fire achievement
+	/// evaluation; peak balance has no achievement gates today.
+	public static void RecordBalance( long money )
+	{
+		if ( money > PeakBalance ) PeakBalance = money;
+	}
+
+	/// Called by <see cref="Letterbox.SpawnLetter"/> every time a fan
+	/// letter lands. Increments the lifetime counter and runs achievement
+	/// evaluation so the FirstLetter / Letters10 / Letters50 milestones
+	/// fire immediately when their thresholds are crossed.
+	public static void RecordLetterReceived()
+	{
+		LettersReceived++;
+		EvaluateAll();
+	}
+
+	/// Called by <see cref="Gallery.RecordShippedGame"/> when a ship's
+	/// pillar score crosses one of the medal thresholds. Increments the
+	/// matching tier counter and fires the FirstBronzeMedal / FirstSilverMedal /
+	/// FirstGoldMedal achievement on first sight of each tier.
+	public static void RecordMedalAwarded( GameMedal m )
+	{
+		switch ( m )
+		{
+			case GameMedal.Bronze: BronzeMedalsAwarded++; break;
+			case GameMedal.Silver: SilverMedalsAwarded++; break;
+			case GameMedal.Gold:   GoldMedalsAwarded++;   break;
+			default:                                       return;
+		}
+		EvaluateAll();
+	}
+
 	/// Genre awarded on each of the first five ships. Index 0 = ship #1.
 	/// Each entry corresponds to a research-pool genre — the in-flight
 	/// research topic, if any, still completes cleanly because
@@ -141,6 +193,11 @@ public static class Achievements
 		TotalHires = 0;
 		PeakMonthlyPlayers = 0;
 		GamesShipped = 0;
+		PeakBalance = 0;
+		LettersReceived = 0;
+		BronzeMedalsAwarded = 0;
+		SilverMedalsAwarded = 0;
+		GoldMedalsAwarded   = 0;
 	}
 
 	// ── Save / Load (per ADR-0001) ──────────────────────────────────────────
@@ -154,6 +211,11 @@ public static class Achievements
 		TotalHires          = TotalHires,
 		PeakMonthlyPlayers  = PeakMonthlyPlayers,
 		GamesShipped        = GamesShipped,
+		PeakBalance         = PeakBalance,
+		LettersReceived     = LettersReceived,
+		BronzeMedalsAwarded = BronzeMedalsAwarded,
+		SilverMedalsAwarded = SilverMedalsAwarded,
+		GoldMedalsAwarded   = GoldMedalsAwarded,
 	};
 
 	public static void Load( AchievementsSave dto )
@@ -167,6 +229,11 @@ public static class Achievements
 		TotalHires         = dto.TotalHires;
 		PeakMonthlyPlayers = dto.PeakMonthlyPlayers;
 		GamesShipped       = dto.GamesShipped;
+		PeakBalance        = dto.PeakBalance;
+		LettersReceived    = dto.LettersReceived;
+		BronzeMedalsAwarded = dto.BronzeMedalsAwarded;
+		SilverMedalsAwarded = dto.SilverMedalsAwarded;
+		GoldMedalsAwarded   = dto.GoldMedalsAwarded;
 	}
 
 	// ── Evaluation ──────────────────────────────────────────────────────────
@@ -253,6 +320,12 @@ public static class Achievements
 		{ AchievementId.Ship5Games,           "ship_5_games"          },
 		{ AchievementId.Ship10Games,          "ship_10_games"         },
 		{ AchievementId.TutorialComplete,     "tutorial_complete"     },
+		{ AchievementId.FirstLetter,          "first_letter"          },
+		{ AchievementId.Letters10,            "letters_10"            },
+		{ AchievementId.Letters50,            "letters_50"            },
+		{ AchievementId.FirstBronzeMedal,     "first_bronze_medal"    },
+		{ AchievementId.FirstSilverMedal,     "first_silver_medal"    },
+		{ AchievementId.FirstGoldMedal,       "first_gold_medal"      },
 	};
 
 	static void BridgeUnlockToPlatform( Achievement ach )
@@ -370,5 +443,34 @@ public static class Achievements
 		        Description = "Finished the new-studio tutorial.",
 		        Evaluate = () => false,
 		        MoneyBonus = 0 },
+
+		// Fan letters (ADR-0003) — small studio-promo bonuses.
+		new() { Id = AchievementId.FirstLetter, Name = "Fan Mail",
+		        Description = "Receive your first fan letter.",
+		        Evaluate = () => LettersReceived >= 1,
+		        MoneyBonus = 200 },
+		new() { Id = AchievementId.Letters10,   Name = "Following",
+		        Description = "Receive 10 fan letters.",
+		        Evaluate = () => LettersReceived >= 10,
+		        MoneyBonus = 1_500 },
+		new() { Id = AchievementId.Letters50,   Name = "Mailbag",
+		        Description = "Receive 50 fan letters.",
+		        Evaluate = () => LettersReceived >= 50,
+		        IsHidden = true,
+		        MoneyBonus = 10_000 },
+
+		// Per-game medal achievements — no MoneyBonus here; the medal
+		// itself pays out in cash via Gallery.AwardMedal so adding a
+		// bonus would double-count the reward.
+		new() { Id = AchievementId.FirstBronzeMedal, Name = "Bronze Standard",
+		        Description = "Hit 200 in any pillar on a shipped game.",
+		        Evaluate = () => BronzeMedalsAwarded >= 1 },
+		new() { Id = AchievementId.FirstSilverMedal, Name = "Silver Lining",
+		        Description = "Hit 500 in any pillar on a shipped game.",
+		        Evaluate = () => SilverMedalsAwarded >= 1 },
+		new() { Id = AchievementId.FirstGoldMedal,   Name = "Gold Standard",
+		        Description = "Hit 1,000 in any pillar on a shipped game.",
+		        Evaluate = () => GoldMedalsAwarded >= 1,
+		        IsHidden = true },
 	};
 }

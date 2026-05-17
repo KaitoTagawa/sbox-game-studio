@@ -5,11 +5,9 @@ public sealed class GameMenu : Component
 	public bool IsOpen        { get; private set; }
 	public int  HoveredIndex  { get; set; } = -1;
 
-	/// Index of the tile whose sub-page is currently shown.
-	/// -1 = no tile selected (description-on-hover mode).
-	public int ActiveSection { get; set; } = -1;
-
-	/// Inner sub-tab for the HR section.
+	/// Inner sub-tab for the HR section. Vestigial as of ADR-0003 Phase 1
+	/// (HR moved to its own modal in ADR-0002 prep work) — kept for the
+	/// HRSubview enum's other readers (TutorialManager.IsHRSubviewEnabled).
 	public HRSubview ActiveHRSubview { get; set; } = HRSubview.None;
 
 	public IReadOnlyList<MenuTile> Tiles { get; } = new MenuTile[]
@@ -20,8 +18,11 @@ public sealed class GameMenu : Component
 		new( "Inventory",      "Manage office furniture and consumables.",                       "📦" ),
 		new( "Shop",           "Buy equipment, decorations, and upgrades for your studio.",      "🛒" ),
 		new( "Edit Desks",     "Edit chair, computer, and monitor at every desk.",               "🖥️" ),
-		new( "Settings",       "Adjust audio, controls, and display options.",                   "⚙️" ),
+		new( "Quests",         "View open requests from fans for specific genres.",              "📜" ),
 		new( "Gallery",        "Browse your released games and achievements.",                   "🏆" ),
+		new( "Letterbox",      "Read fan letters about your shipped games.",                     "📬" ),
+		new( "Leaderboards",   "Compete against other studios on the global boards.",            "🌐" ),
+		new( "Settings",       "Adjust audio, controls, and display options.",                   "⚙️" ),
 		new( "Save",           "Save your progress to disk.",                                    "💾" ),
 	};
 
@@ -54,11 +55,54 @@ public sealed class GameMenu : Component
 		// works normally (with phase-appropriate tiles greyed out).
 		if ( TutorialManager.Instance is { IsAnyModalVisible: true } ) return;
 
-		// Tab is the universal "back to gameplay" key. If any sibling modal is
-		// already up (Create-Game, Shop, Settings, Gallery), close that one
-		// instead of popping the GameMenu open on top of it. Without this
-		// guard, pressing Tab inside the Create-Game flow stacks GameMenu
-		// over the modal and the player ends up with two UIs visible.
+		// Tab is the universal "back to gameplay" key. If any sibling modal
+		// is already up, close that one instead of popping the GameMenu
+		// open on top of it. Without this guard, pressing Tab inside any
+		// modal flow stacks GameMenu over it and the player ends up with
+		// two UIs visible.
+		//
+		// Sub-modals are checked BEFORE their parent modals so a Tab press
+		// while drilled into a sub-view (HR Stats card, HR interview card,
+		// inventory desk-assign picker, Letterbox letter reader) closes
+		// BOTH the sub-modal AND its parent in one tap — matching the
+		// "back to gameplay" intent rather than forcing two presses to
+		// escape a deep flow.
+
+		// ── Sub-modals (close sub + parent in one tap) ───────────────────
+		if ( Letterbox.Instance is { IsReadingLetter: true } )
+		{
+			Letterbox.Instance.StopReading();
+			Letterbox.Instance.SetOpen( false );
+			return;
+		}
+		if ( HRManager.Instance is { IsViewingStaff: true } )
+		{
+			HRManager.Instance.CloseWorkerView();
+			HR.Instance?.SetOpen( false );
+			return;
+		}
+		if ( HRManager.Instance is { IsInterviewing: true } )
+		{
+			// PassOnInterviewSubject refuses the tutorial hire (returns
+			// silently with a "must hire them" toast); the tutorial
+			// IsAnyModalVisible guard above already short-circuits Tab
+			// during the tutorial flow, so this is a clean drop in
+			// post-tutorial state.
+			HRManager.Instance.PassOnInterviewSubject();
+			HR.Instance?.SetOpen( false );
+			return;
+		}
+		if ( InventoryManager.Instance is { IsAssigning: true } )
+		{
+			InventoryManager.Instance.CancelAssign();
+			// Picker can be triggered without the inventory modal open
+			// (Workstations also pops it), so guard the close.
+			if ( InventoryManager.Instance.IsOpen )
+				InventoryManager.Instance.SetOpen( false );
+			return;
+		}
+
+		// ── Top-level modals ─────────────────────────────────────────────
 		if ( Shop.Instance is { IsOpen: true } )               { Shop.Instance.SetOpen( false );               return; }
 		if ( Settings.Instance is { IsOpen: true } )           { Settings.Instance.SetOpen( false );           return; }
 		if ( Gallery.Instance is { IsOpen: true } )            { Gallery.Instance.SetOpen( false );            return; }
@@ -66,6 +110,11 @@ public sealed class GameMenu : Component
 		if ( InventoryManager.Instance is { IsOpen: true } )   { InventoryManager.Instance.SetOpen( false );   return; }
 		if ( GameProjectManager.Instance is { IsOpen: true } ) { GameProjectManager.Instance.SetOpen( false ); return; }
 		if ( Workstations.Instance is { IsOpen: true } )       { Workstations.Instance.SetOpen( false );       return; }
+		if ( HR.Instance is { IsOpen: true } )                 { HR.Instance.SetOpen( false );                 return; }
+		if ( Leaderboards.Instance is { IsOpen: true } )       { Leaderboards.Instance.SetOpen( false );       return; }
+		if ( SaveMenu.Instance is { IsOpen: true } )           { SaveMenu.Instance.SetOpen( false );           return; }
+		if ( Letterbox.Instance is { IsOpen: true } )          { Letterbox.Instance.SetOpen( false );          return; }
+		if ( Letterbox.Instance is { IsQuestOpen: true } )     { Letterbox.Instance.SetQuestOpen( false );     return; }
 
 		Toggle();
 	}
@@ -103,12 +152,11 @@ public sealed class GameMenu : Component
 			return;
 		}
 
-		// Tiles that own a dedicated full-screen modal: route to the modal
-		// and DON'T touch ActiveSection. Without that, ActiveSection sticks
-		// on the modal-tile after the menu closes and reopens — so the next
-		// time the player opens HR, they land on a "Coming soon" placeholder
-		// for the last modal tile they clicked. Only Save / Stats / HR set
-		// ActiveSection (they render in-menu).
+		SFX.PlayClick();
+
+		// Every tile owns a dedicated full-screen modal as of ADR-0003
+		// Phase 1. Each branch closes this menu and pops the appropriate
+		// singleton; no inline content remains.
 		if ( tile.Name == "Shop" )
 		{
 			SetOpen( false );
@@ -198,6 +246,93 @@ public sealed class GameMenu : Component
 			InventoryManager.Instance.SetOpen( true );
 			return;
 		}
+		else if ( tile.Name == "Human Resource" )
+		{
+			// HR moved out of the inline GameMenu sub-page into its own
+			// fullscreen modal (Code/HR.cs + HRPanel) so the four sub-tabs
+			// (Hire / Fire / Stats / Posting) can breathe. Same hand-off
+			// pattern as Shop / Inventory / Training.
+			if ( HR.Instance is null )
+			{
+				Log.Warning( "[Menu] Human Resource clicked but HR component " +
+				             "is missing from the scene." );
+				Notifications.Push( "Setup Needed",
+					"HR component is missing from the scene.",
+					"warning" );
+				return;
+			}
+			SetOpen( false );
+			HR.Instance.SetOpen( true );
+			return;
+		}
+		else if ( tile.Name == "Leaderboards" )
+		{
+			// Leaderboards modal — see ADR-0002. Same hand-off pattern as
+			// Shop / HR / Inventory.
+			if ( Leaderboards.Instance is null )
+			{
+				Log.Warning( "[Menu] Leaderboards clicked but Leaderboards " +
+				             "component is missing from the scene." );
+				Notifications.Push( "Setup Needed",
+					"Leaderboards component is missing from the scene.",
+					"warning" );
+				return;
+			}
+			SetOpen( false );
+			Leaderboards.Instance.SetOpen( true );
+			return;
+		}
+		else if ( tile.Name == "Letterbox" )
+		{
+			// Letterbox modal — see ADR-0003 Phase 2. Same hand-off pattern
+			// as Shop / HR / Inventory / Leaderboards.
+			if ( Letterbox.Instance is null )
+			{
+				Log.Warning( "[Menu] Letterbox clicked but Letterbox component " +
+				             "is missing from the scene." );
+				Notifications.Push( "Setup Needed",
+					"Letterbox component is missing from the scene.",
+					"warning" );
+				return;
+			}
+			SetOpen( false );
+			Letterbox.Instance.SetOpen( true );
+			return;
+		}
+		else if ( tile.Name == "Quests" )
+		{
+			// Quests dashboard — see ADR-0003 Phase 3. Reads open + fulfilled
+			// quest letters from Letterbox.Instance, no separate singleton.
+			if ( Letterbox.Instance is null )
+			{
+				Log.Warning( "[Menu] Quests clicked but Letterbox component " +
+				             "is missing from the scene." );
+				Notifications.Push( "Setup Needed",
+					"Letterbox component is missing from the scene.",
+					"warning" );
+				return;
+			}
+			SetOpen( false );
+			Letterbox.Instance.SetQuestOpen( true );
+			return;
+		}
+		else if ( tile.Name == "Save" )
+		{
+			// Save / Load modal — extracted from the inline content area in
+			// ADR-0003 Phase 1 so every menu tile now opens a fullscreen UI.
+			if ( SaveMenu.Instance is null )
+			{
+				Log.Warning( "[Menu] Save clicked but SaveMenu component " +
+				             "is missing from the scene." );
+				Notifications.Push( "Setup Needed",
+					"SaveMenu component is missing from the scene.",
+					"warning" );
+				return;
+			}
+			SetOpen( false );
+			SaveMenu.Instance.SetOpen( true );
+			return;
+		}
 		else if ( tile.Name == "Edit Desks" )
 		{
 			// Edit Desks: per-desk equipment management hub. Replaced
@@ -217,9 +352,10 @@ public sealed class GameMenu : Component
 			return;
 		}
 
-		// In-menu tile (HR / Save / Stats) — render its sub-page inline.
-		ActiveSection   = index;
-		ActiveHRSubview = HRSubview.None;
+		// Every tile now routes to a dedicated fullscreen modal above.
+		// Reaching this point means a tile name was added without a
+		// matching Activate branch — log and no-op.
+		Log.Warning( $"[Menu] No Activate branch for tile '{tile.Name}'." );
 	}
 
 	public void SetHRSubview( HRSubview s )

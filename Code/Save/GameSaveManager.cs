@@ -20,7 +20,14 @@ public sealed class GameSaveManager : Component
 	/// Bumped on every breaking schema change. Old files load through
 	/// <see cref="GameSaveMigrations"/> migrators; newer files refuse to
 	/// load (no downgrade path).
-	public const int SchemaVersion = 1;
+	///
+	/// History:
+	///   v1 — initial format (ADR-0001).
+	///   v2 — added <c>AchievementsSave.PeakBalance</c> (ADR-0002, leaderboards).
+	///   v3 — added <c>LetterboxSave</c> (ADR-0003, fan letters + quests).
+	///        v3-bump in Phase 1 (slot count change) so Phase 2 can land
+	///        the data changes without a second schema increment.
+	public const int SchemaVersion = 3;
 
 	/// Reserved slot id for the autosave path. Doubles as the player-facing
 	/// "Slot 1" — autosave triggers overwrite slot 1 directly, and the Save
@@ -32,7 +39,18 @@ public sealed class GameSaveManager : Component
 	/// Player-facing manual save slots. Surfaced in the in-game Save menu
 	/// (one card per slot). Slot 1 is the autosave slot (read-only from the
 	/// player's POV); slot 2 is the free manual slot.
-	public static readonly string[] ManualSlotIds = new[] { "slot-1", "slot-2" };
+	/// Display order in the SavePanel matches this array's order. Autosave
+	/// sits at the BOTTOM (index 2 → labelled "SLOT 3 (AUTO-SAVE)") so the
+	/// player can't accidentally LOAD it when they meant to LOAD a manual
+	/// save. The on-disk file id <c>"slot-1"</c> is unchanged — autosave
+	/// triggers (<see cref="AutosaveSlotId"/>) still write there; the
+	/// rearrangement is purely UX.
+	public static readonly string[] ManualSlotIds = new[]
+	{
+		"slot-2",   // manual #1   → labelled SLOT 1 in the UI
+		"slot-3",   // manual #2   → labelled SLOT 2 in the UI
+		"slot-1",   // autosave    → labelled SLOT 3 (AUTO-SAVE) in the UI
+	};
 
 	/// Safe spot the player is teleported to before any wholesale slot
 	/// activation runs (load, or buying an item that enables a slot the
@@ -175,6 +193,11 @@ public sealed class GameSaveManager : Component
 				$"unlocked={dto.Achievements?.Unlocked?.Count ?? 0} " +
 				$"shipped={dto.Gallery?.ShippedGames?.Count ?? 0} " +
 				$"project={(dto.ActiveProject is null ? "none" : dto.ActiveProject.Phase.ToString())}" );
+
+			// Submit the two save-time leaderboard stats (ADR-0002).
+			// Wrapped internally so a platform failure can't fail the save.
+			Leaderboards.SubmitOnSave();
+
 			return true;
 		}
 		catch ( System.Exception ex )
@@ -259,6 +282,7 @@ public sealed class GameSaveManager : Component
 		PlayerStats.Instance?.ResetProgress();
 		InventoryManager.Instance?.ResetProgress(); // re-seeds starter Desk
 		Gallery.Instance?.ResetProgress();
+		Letterbox.Instance?.ResetProgress();
 
 		// Systems without an explicit Reset method clear via Load(null) —
 		// they treat null DTO as "no save state, start empty".
@@ -373,6 +397,10 @@ public sealed class GameSaveManager : Component
 		if ( tut is not null )
 			dto.Tutorial = tut.Save();
 
+		var letterbox = Letterbox.Instance;
+		if ( letterbox is not null )
+			dto.Letterbox = letterbox.Save();
+
 		return dto;
 	}
 
@@ -419,6 +447,7 @@ public sealed class GameSaveManager : Component
 		Gallery.Instance?.Load( dto.Gallery );
 		GameProjectManager.Instance?.Load( dto.ActiveProject );
 		TutorialManager.Instance?.Load( dto.Tutorial );
+		Letterbox.Instance?.Load( dto.Letterbox );
 	}
 
 	// ── Cross-run files (settings + meta-progression) ────────────────────
@@ -539,14 +568,7 @@ public sealed class GameSaveManager : Component
 	/// from any modal context always lands at a clean UI state.
 	static void CloseAllUi()
 	{
-		GameMenu.Instance?.SetOpen( false );
-		Shop.Instance?.SetOpen( false );
-		Settings.Instance?.SetOpen( false );
-		Gallery.Instance?.SetOpen( false );
-		InventoryManager.Instance?.SetOpen( false );
-		TrainingManager.Instance?.SetOpen( false );
-		GameProjectManager.Instance?.SetOpen( false );
-		Workstations.Instance?.SetOpen( false );
+		Modals.CloseAllExcept();
 
 		// HR has two non-modal subjects (interview / staff-view) and the
 		// inventory desk-assign picker — clear them so panels bound to

@@ -138,24 +138,11 @@ public sealed class EmployeeNPC : Component, IDevWorker
 	/// chat-open time so accept/decline still works even if mood resets mid-chat.
 	[Property] public EmployeeSuggestion PendingSuggestion { get; set; }
 
-	/// Which advice line (0 or 1) is the "right" one when this NPC is in
-	/// <see cref="EmployeeMood.Bad"/>. Rolled when entering Bad mood and
-	/// stable until the mood resets — so the player can retry the OTHER
-	/// option if their first guess was wrong, rather than the answer
-	/// shifting under them. Only meaningful while Mood == Bad.
-	[Property] public int RightAdvice { get; set; }
-
-	/// Absolute "total day" index past which this NPC's Bad-mood immunity
-	/// expires. Granted by the Chewing Gum consumable (see
-	/// <see cref="GrantBadMoodImmunity"/>). 0 = no immunity ever granted —
-	/// safe sentinel since real game time always lives at year 2026+ which
-	/// puts <see cref="TotalDayNow"/> in the hundreds of thousands.
-	[Property] public int BadMoodImmuneUntilTotalDay { get; set; }
-
 	/// Absolute "total day" index past which this NPC's Energy Drink boost
 	/// expires. While active, P(Good) per tick is 50% higher (e.g. 3.5% →
-	/// 5.25% at 5 hires); P(Bad) is unaffected. Same 0-sentinel pattern as
-	/// <see cref="BadMoodImmuneUntilTotalDay"/>.
+	/// 5.25% at 5 hires). 0 = no boost ever granted — safe sentinel since
+	/// real game time always lives at year 2026+ which puts
+	/// <see cref="TotalDayNow"/> in the hundreds of thousands.
 	[Property] public int EnergyDrinkUntilTotalDay { get; set; }
 
 	/// Optional child GameObject hosting a "lightbulb / sparkle" particle.
@@ -164,12 +151,16 @@ public sealed class EmployeeNPC : Component, IDevWorker
 	/// it doesn't emit on spawn.
 	[Property] public GameObject GoodMoodFx { get; set; }
 
-	/// Optional child GameObject hosting a "frustrated cloud / red puff"
-	/// particle. Toggled on while in <see cref="EmployeeMood.Bad"/>, off
-	/// otherwise. Disable in the prefab so fresh hires don't emit.
-	[Property] public GameObject BadMoodFx { get; set; }
-
 	float _moodTickTimer;
+
+	/// Number of remaining mood ticks during which this NPC is exempt
+	/// from new mood rolls. Set to 2 in <see cref="SetMood"/> whenever
+	/// mood transitions from Good back to Neutral (player accepted /
+	/// declined the suggestion, OR production ended). Decremented per
+	/// <c>MoodTickInterval</c> tick inside <see cref="TickMood"/>.
+	/// Ephemeral — not persisted in the save (mood resets to Neutral on
+	/// load anyway when production isn't active).
+	int _moodResolutionCooldown;
 
 	/// True only while the NPC is actively at their desk producing work.
 	public bool IsWorking => State == EmployeeState.Working;
@@ -306,6 +297,15 @@ public sealed class EmployeeNPC : Component, IDevWorker
 		// HRManager spawned them and don't drift between desk / training /
 		// break anchors.
 		if ( !SpecialHires.TakesDesk( Kind ) ) return;
+
+		// Modal pause: freeze the NPC entirely while the player is in a
+		// configuration UI. No mood rolls, no state-machine transitions,
+		// no movement updates. Animation poses linger at whatever blend
+		// they were last set to — s&box's animation graph is engine-driven
+		// and continues without OnUpdate. If poses look frozen mid-stride
+		// during pause, that's the trade-off; the alternative (forcing
+		// idle on every NPC) is visible UI churn at pause/unpause.
+		if ( GameManager.Instance is { IsTimePaused: true } ) return;
 
 		// Mood ticking — only meaningful during Production; cheap to call.
 		TickMood();
@@ -574,36 +574,33 @@ public sealed class EmployeeNPC : Component, IDevWorker
 	/// TEMP: 2.5s for playtest — bump back to ~25f once mood pacing is dialed.
 	const float MoodTickInterval = 2.5f;
 
-	/// Per-tick chance an NPC who is currently Neutral flips to Good or Bad.
+	/// Per-tick chance an NPC who is currently Neutral flips to Good.
 	/// Scales DOWN with studio size so big offices don't drown the player —
-	/// but the curve is tuned so the STUDIO-wide event rate (per-NPC chance ×
-	/// staff count) strictly grows with each new hire (no tier-boundary
-	/// dips — adding a 5th hire used to lower studio activity).
-	///   • 1–4 hires : 0.080  (4.0 % Good / 4.0 % Bad)
-	///   •   5 hires : 0.070  (3.5 % Good / 3.5 % Bad)
-	///   •   6 hires : 0.065  (3.25 % / 3.25 %)
-	///   •   7 hires : 0.060  (3.0 % / 3.0 %)
-	///   • 8+ hires  : 0.055  (2.75 % / 2.75 %)
-	/// The 50 / 50 internal split happens at the call site.
+	/// but the curve is tuned so the STUDIO-wide event rate (per-NPC chance
+	/// × staff count) strictly grows with each new hire (no tier-boundary
+	/// dips — adding a 5th hire used to lower studio activity). Returned
+	/// number is the FULL per-tick P(Good) baseline; Energy Drink and the
+	/// Letterbox motivation buff scale on top of it at the call site.
+	///   • 1–4 hires : 0.040  (4.0 %)
+	///   •   5 hires : 0.035  (3.5 %)
+	///   •   6 hires : 0.0325 (3.25 %)
+	///   •   7 hires : 0.030  (3.0 %)
+	///   • 8+ hires  : 0.0275 (2.75 %)
 	static float MoodChangeChanceForStaff()
 	{
 		int n = HRManager.Instance?.Staff.Count ?? 0;
-		if ( n >= 8 ) return 0.055f;
-		if ( n == 7 ) return 0.060f;
-		if ( n == 6 ) return 0.065f;
-		if ( n == 5 ) return 0.070f;
-		return 0.080f;
+		if ( n >= 8 ) return 0.0275f;
+		if ( n == 7 ) return 0.030f;
+		if ( n == 6 ) return 0.0325f;
+		if ( n == 5 ) return 0.035f;
+		return 0.040f;
 	}
 
-	/// 0.5 when Bad, 1.0 otherwise. Multiplies into the per-worker pillar
-	/// contribution in <see cref="GameProjectManager.PillarContribution"/>.
-	public float MoodEfficiencyFactor => Mood == EmployeeMood.Bad ? 0.5f : 1f;
-
 	/// Single absolute-day index (Year × 360 + Month × 30 + Day) used to
-	/// compare against <see cref="BadMoodImmuneUntilTotalDay"/>. Calendar
+	/// compare against <see cref="EnergyDrinkUntilTotalDay"/>. Calendar
 	/// uses fixed 30-day months / 12-month years so a single int is enough
 	/// — no DateTime gymnastics needed. Returns 0 if the GameManager isn't
-	/// up yet (very early in scene boot), which keeps immunity inactive.
+	/// up yet (very early in scene boot), which keeps buffs inactive.
 	static int TotalDayNow()
 	{
 		var gm = GameManager.Instance;
@@ -611,47 +608,15 @@ public sealed class EmployeeNPC : Component, IDevWorker
 		return gm.Year * 360 + (gm.Month - 1) * 30 + (gm.Day - 1);
 	}
 
-	/// True while the Chewing Gum buff window is active. Read by
-	/// <see cref="TickMood"/> to suppress Bad-mood transitions; Good rolls
-	/// are unaffected so the buff is purely a downside-eliminator.
-	public bool IsBadMoodImmune => TotalDayNow() < BadMoodImmuneUntilTotalDay;
-
-	/// In-game days remaining on the Bad-mood immunity window, or 0 when
-	/// no buff is active. Useful for UI surfacing later (not currently
-	/// shown to the player).
-	public int BadMoodImmuneDaysLeft
-	{
-		get
-		{
-			var diff = BadMoodImmuneUntilTotalDay - TotalDayNow();
-			return diff > 0 ? diff : 0;
-		}
-	}
-
-	/// Grant N in-game days of Bad-mood immunity. Heals current Bad mood
-	/// (if any) back to Neutral immediately so the buff feels active right
-	/// away. Stacks by extension: re-granting takes the later of the two
-	/// expiry days, never the earlier — players can't accidentally shorten
-	/// an active buff by re-using one. Caller (InventoryManager.TryGiveConsumable)
-	/// is responsible for decrementing stash + showing the toast.
-	public void GrantBadMoodImmunity( int days )
-	{
-		if ( days <= 0 ) return;
-		var until = TotalDayNow() + days;
-		if ( until > BadMoodImmuneUntilTotalDay )
-			BadMoodImmuneUntilTotalDay = until;
-		if ( Mood == EmployeeMood.Bad )
-			SetMood( EmployeeMood.Neutral, silent: true );
-	}
-
 	/// True while the Energy Drink buff window is active. Read by
-	/// <see cref="TickMood"/> to tilt the Good/Bad split toward Good.
+	/// <see cref="TickMood"/> to scale P(Good) per tick.
 	public bool IsEnergyBoosted => TotalDayNow() < EnergyDrinkUntilTotalDay;
 
-	/// Grant N in-game days of Energy Drink boost (P(Good) × 1.5 per tick,
-	/// P(Bad) unchanged). Same extend-don't-shorten stack rule as
-	/// <see cref="GrantBadMoodImmunity"/>. Caller is responsible for
-	/// decrementing stash + showing the toast.
+	/// Grant N in-game days of Energy Drink boost (P(Good) × 1.5 per tick).
+	/// Stacks by extension: re-granting takes the later of the two expiry
+	/// days, never the earlier — players can't accidentally shorten an
+	/// active buff by re-using one. Caller is responsible for decrementing
+	/// stash + showing the toast.
 	public void GrantEnergyBoost( int days )
 	{
 		if ( days <= 0 ) return;
@@ -662,14 +627,14 @@ public sealed class EmployeeNPC : Component, IDevWorker
 
 	/// Roll mood transitions while in Production. Outside Production we
 	/// idempotently reset mood to Neutral so a project that ends with
-	/// pending suggestions or frustrated NPCs cleans up automatically.
+	/// pending suggestions cleans up automatically.
 	void TickMood()
 	{
 		// Mood system stays dormant for the entire tutorial. The Production-
 		// phase gate below would otherwise let moods roll between Begin
 		// Production and the Start Up Training CTA on StartupTraining — a
-		// Bad-mood sticky toast landing on top of the tutorial UI would
-		// confuse the player before they understand the chat mechanic.
+		// sticky toast landing on top of the tutorial UI would confuse the
+		// player before they understand the chat mechanic.
 		if ( TutorialManager.Instance is { Phase: not TutorialPhase.Complete } )
 		{
 			if ( Mood != EmployeeMood.Neutral )
@@ -688,78 +653,77 @@ public sealed class EmployeeNPC : Component, IDevWorker
 			return;
 		}
 
+		// Modal / Escape-menu pause: same gate the rest of the time-based
+		// systems use. Mood roll cadence freezes while the player is in
+		// a configuration UI or the engine is paused.
+		if ( GameManager.Instance is { IsTimePaused: true } ) return;
+
 		_moodTickTimer += Time.Delta * (GameManager.Instance?.TimeMultiplier ?? 1f);
 		if ( _moodTickTimer < MoodTickInterval ) return;
 		_moodTickTimer = 0f;
 
-		// Don't double-roll an NPC who's already in a non-neutral mood — they
-		// stay there until the player chats with them or production ends.
+		// Don't double-roll an NPC who's already in Good — they stay there
+		// until the player chats with them or production ends.
 		if ( Mood != EmployeeMood.Neutral ) return;
 
+		// Just-resolved cooldown: skip rolls for the first 2 ticks after
+		// a Good mood was cleared (see SetMood). Counts down at the
+		// MoodTickInterval cadence, not per-frame.
+		if ( _moodResolutionCooldown > 0 )
+		{
+			_moodResolutionCooldown--;
+			return;
+		}
+
 		// Second-game tutorial nudge: GameProjectManager flags the Production
-		// of the player's 2nd ever game with these pending guarantees, so the
-		// next eligible (Neutral) NPC tick force-fires Good and the one after
-		// that force-fires Bad. The flags clear on consumption — after that
-		// moods revert to the regular probabilistic roll. Naturally lands on
-		// two different NPCs because the first one is no longer Neutral by
-		// the time the second flag fires.
+		// of the player's 2nd ever game with GuaranteeGoodMoodPending, so the
+		// next eligible (Neutral) NPC tick force-fires Good. The flag clears
+		// on consumption — after that moods revert to the regular
+		// probabilistic roll.
 		var project = GameProjectManager.Instance?.Current;
-		if ( project is not null )
+		if ( project is { GuaranteeGoodMoodPending: true } )
 		{
-			if ( project.GuaranteeGoodMoodPending )
-			{
-				project.GuaranteeGoodMoodPending = false;
-				SetMood( EmployeeMood.Good );
-				return;
-			}
-			// Skip the guaranteed-Bad tutorial nudge if THIS NPC is gum-
-			// buffed; leave the flag pending so the next eligible (Neutral,
-			// non-immune) NPC catches it instead. Without this, a player
-			// who chewed-gummed everyone right before their 2nd game would
-			// silently consume the tutorial Bad-mood beat with no visible
-			// effect.
-			if ( project.GuaranteeBadMoodPending && !IsBadMoodImmune )
-			{
-				project.GuaranteeBadMoodPending = false;
-				SetMood( EmployeeMood.Bad );
-				return;
-			}
-		}
-
-		// Per-tick Good and Bad chances, computed independently. Baseline
-		// is a 50/50 split of MoodChangeChanceForStaff (so e.g. at 5 hires
-		// → 3.5% Good / 3.5% Bad per tick). Buffs scale each side
-		// independently — they do not steal from the other:
-		//   • Energy Drink (IsEnergyBoosted) → P(Good) × 1.5, P(Bad) unchanged.
-		//   • Chewing Gum  (IsBadMoodImmune) → P(Bad) = 0,    P(Good) unchanged.
-		// One uniform roll, partitioned: [0, badChance) → Bad,
-		// [badChance, badChance + goodChance) → Good, else no transition.
-		float baseHalf   = MoodChangeChanceForStaff() * 0.5f;
-		float goodChance = IsEnergyBoosted ? baseHalf * 1.5f : baseHalf;
-		float badChance  = IsBadMoodImmune  ? 0f             : baseHalf;
-
-		double r = _rng.NextDouble();
-		if ( r < badChance )
-		{
-			SetMood( EmployeeMood.Bad );
-		}
-		else if ( r < badChance + goodChance )
-		{
+			project.GuaranteeGoodMoodPending = false;
 			SetMood( EmployeeMood.Good );
+			return;
 		}
-		// else: no transition this tick.
+
+		// Per-tick Good chance. Baseline is MoodChangeChanceForStaff (e.g.
+		// 3.5% at 5 hires). Energy Drink / Chewing Gum scale it × 1.5, and
+		// the fan-letter motivation buff adds +2% absolute.
+		float goodChance = MoodChangeChanceForStaff();
+		if ( IsEnergyBoosted ) goodChance *= 1.5f;
+
+		// Fan-letter motivation (ADR-0003): reading a non-quest letter
+		// grants the studio +2% absolute Good-mood chance for 14 in-game
+		// days. Stacks additively on top of Energy Drink. Studio-wide
+		// (not per-employee), so every NPC's roll picks it up uniformly.
+		if ( Letterbox.Instance?.IsMotivated ?? false ) goodChance += 0.02f;
+
+		if ( _rng.NextDouble() < goodChance )
+			SetMood( EmployeeMood.Good );
 	}
 
-	/// Apply a mood transition. Toggles per-mood particle children so the
-	/// player can spot the NPC across the office. Pushes a one-shot toast
-	/// the FIRST time each mood type fires per production (warning for
-	/// Bad, info for Good); subsequent rolls are silent so a busy studio
-	/// doesn't stack notifications. <paramref name="silent"/> overrides
-	/// the toast for transitions that aren't player-relevant (e.g. heal-
-	/// to-Neutral, production-end reset).
+	/// Apply a mood transition. Toggles the Good-mood particle child so the
+	/// player can spot the NPC across the office. Pushes a one-shot Idea
+	/// toast the FIRST time Good fires per production; subsequent rolls are
+	/// silent so a busy studio doesn't stack notifications.
+	/// <paramref name="silent"/> overrides the toast for transitions that
+	/// aren't player-relevant (e.g. accept/decline resolution, production-end
+	/// reset).
 	public void SetMood( EmployeeMood mood, bool silent = false )
 	{
+		var previous = Mood;
 		Mood = mood;
+
+		// Resolution cooldown: when an NPC's mood transitions OUT of Good
+		// back to Neutral, grant a 2-tick grace period before they can roll
+		// again. Prevents "Good → accept → Good again next tick" ping-pong.
+		// Applies whether the resolution was player-driven (silent: true
+		// via EmployeeInteractor) or system-driven (production end).
+		if ( previous != EmployeeMood.Neutral && mood == EmployeeMood.Neutral )
+			_moodResolutionCooldown = 2;
+
 		switch ( mood )
 		{
 			case EmployeeMood.Good:
@@ -779,41 +743,11 @@ public sealed class EmployeeNPC : Component, IDevWorker
 						tag:      firstEver ? "first-good-mood" : "" );
 				}
 				break;
-			case EmployeeMood.Bad:
-				PendingSuggestion = null;
-				// Roll which advice slot heals this frustration. The player
-				// can't tell which is "right" up front — guess, see if it
-				// landed, retry the other on a miss. Stays stable across
-				// retries so the answer doesn't shift after a wrong guess.
-				RightAdvice = _rng.Next( 2 );
-				if ( !silent && TryConsumeBadMoodToastSlot() )
-				{
-					bool firstEver = !(TutorialManager.Instance?.FirstBadMoodToastSeen ?? true);
-					Notifications.Push(
-						"Frustrated",
-						$"{EmployeeName} looks frustrated. Go talk to them.",
-						"danger",
-						duration: firstEver ? 0f : 5f,
-						tag:      firstEver ? "first-bad-mood" : "" );
-				}
-				break;
 			default:
 				PendingSuggestion = null;
 				break;
 		}
 		ApplyMoodFx();
-	}
-
-	/// True iff the current production hasn't yet shown a Bad-mood toast.
-	/// Sets the flag so subsequent Bad rolls during this production are
-	/// silent. No-op (and returns false) outside Production.
-	static bool TryConsumeBadMoodToastSlot()
-	{
-		var p = GameProjectManager.Instance?.Current;
-		if ( p is null ) return false;
-		if ( p.BadMoodToastShown ) return false;
-		p.BadMoodToastShown = true;
-		return true;
 	}
 
 	static bool TryConsumeGoodMoodToastSlot()
@@ -825,88 +759,12 @@ public sealed class EmployeeNPC : Component, IDevWorker
 		return true;
 	}
 
-	/// Mirror <see cref="Mood"/> onto the two particle children — exactly
-	/// one (or neither) is Enabled at any time. Safe when the inspector
-	/// slots are unbound; just no-ops.
+	/// Mirror <see cref="Mood"/> onto the Good-mood particle child. Safe
+	/// when the inspector slot is unbound; just no-ops.
 	void ApplyMoodFx()
 	{
 		if ( GoodMoodFx is not null ) GoodMoodFx.Enabled = Mood == EmployeeMood.Good;
-		if ( BadMoodFx  is not null ) BadMoodFx.Enabled  = Mood == EmployeeMood.Bad;
 	}
-
-	/// Bad-mood greeting line — shown the moment the player opens a chat with
-	/// a frustrated NPC. Talking is the fix; the chat opening immediately
-	/// flips the mood back to Neutral.
-	public string PickBadMoodGreeting()
-	{
-		var pool = BadMoodGreetings( Role );
-		return pool[_rng.Next( pool.Length )];
-	}
-
-	static string[] BadMoodGreetings( EmployeeRole role ) => role switch
-	{
-		EmployeeRole.Programmer    => new[] { "Stuck on a bug. Glad you're here.", "I can't get this to repro. Help me think?", "Compile errors all morning." },
-		EmployeeRole.Designer      => new[] { "I keep going in circles on this one.", "Nothing I prototype feels right.", "Can I get a sanity check?" },
-		EmployeeRole.Creative      => new[] { "Writer's block. Properly stuck.", "Every line I write sounds wrong.", "I need to bounce something off you." },
-		EmployeeRole.Artist        => new[] { "This piece isn't coming together.", "Colors are fighting me today.", "I redrew this five times and it still feels off." },
-		EmployeeRole.SoundDesigner => new[] { "The mix isn't sitting right.", "I'm overthinking this score.", "Got a sec? My ears are toast." },
-		EmployeeRole.Researcher    => new[] { "Hit a dead end on this paper.", "Can't get the experiment to converge.", "I need a second opinion." },
-		_                          => new[] { "Got a minute? I'm stuck." },
-	};
-
-	/// Two advice options offered when the player chats with a Bad-mood NPC.
-	/// Index 0 / 1 — one of them matches <see cref="RightAdvice"/>. The
-	/// player picks blind; the wrong one shows a "still stuck" line and the
-	/// mood stays Bad, so they can retry the other.
-	public static string[] AdviceLabels( EmployeeRole role ) => role switch
-	{
-		EmployeeRole.Programmer    => new[] { "Take a walk and reset.",         "Let's pair-program through it." },
-		EmployeeRole.Designer      => new[] { "Sketch it on paper.",            "Look at it from the player's POV." },
-		EmployeeRole.Creative      => new[] { "Re-read your outline.",          "Just write the worst version first." },
-		EmployeeRole.Artist        => new[] { "Step away for an hour.",         "Pull up a different reference." },
-		EmployeeRole.SoundDesigner => new[] { "Reset your ears with silence.",  "Try a different mix bus." },
-		EmployeeRole.Researcher    => new[] { "Sleep on it — fresh tomorrow.",  "Talk through your hypothesis with me." },
-		_                          => new[] { "Take a break.",                  "Talk it through with me." },
-	};
-
-	/// NPC's reaction when the player picks the matching advice. Mood is
-	/// already flipping back to Neutral by the time this runs.
-	public string RightAdviceResponse()
-	{
-		var pool = RightAdviceLines( Role );
-		return pool[_rng.Next( pool.Length )];
-	}
-
-	/// NPC's reaction when the player picks the wrong advice. Mood stays
-	/// Bad so the player can retry the other option without re-opening
-	/// the chat.
-	public string WrongAdviceResponse()
-	{
-		var pool = WrongAdviceLines( Role );
-		return pool[_rng.Next( pool.Length )];
-	}
-
-	static string[] RightAdviceLines( EmployeeRole role ) => role switch
-	{
-		EmployeeRole.Programmer    => new[] { "Yeah, that's it. Cheers.",            "OK, I see it now. Thanks." },
-		EmployeeRole.Designer      => new[] { "That clicked. Thanks.",                "Right — that's the angle." },
-		EmployeeRole.Creative      => new[] { "Oh — that's the unlock. Thanks.",      "Yeah, that gives me a way in." },
-		EmployeeRole.Artist        => new[] { "OK, I can see it now. Cheers.",        "That's what I needed. Thanks!" },
-		EmployeeRole.SoundDesigner => new[] { "There it is. Thanks, boss.",           "Yeah — clean ears help." },
-		EmployeeRole.Researcher    => new[] { "Mm. That helps. Thank you.",           "Right — back on track." },
-		_                          => new[] { "Thanks. That helped." },
-	};
-
-	static string[] WrongAdviceLines( EmployeeRole role ) => role switch
-	{
-		EmployeeRole.Programmer    => new[] { "Tried that. Didn't crack it.",         "Hmm, no luck there." },
-		EmployeeRole.Designer      => new[] { "Doesn't quite fit the problem.",       "I don't think that's it." },
-		EmployeeRole.Creative      => new[] { "Hmm, doesn't unlock anything.",        "Not what's blocking me, I think." },
-		EmployeeRole.Artist        => new[] { "Not feeling it. Maybe something else?", "Hmm, didn't help." },
-		EmployeeRole.SoundDesigner => new[] { "Tried that already. Stuck still.",     "Doesn't fix what I'm hearing." },
-		EmployeeRole.Researcher    => new[] { "Mm, that's not the snag.",             "Not quite the angle I need." },
-		_                          => new[] { "That doesn't quite help." },
-	};
 
 	// ── Player chat ───────────────────────────────────────────────────────────
 

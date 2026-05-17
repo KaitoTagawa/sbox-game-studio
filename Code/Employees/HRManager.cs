@@ -234,6 +234,16 @@ public sealed class HRManager : Component
 
 	float _applicantTimer;
 
+	/// Set true the moment the tutorial applicant is seeded; consumed by
+	/// the next Regular <see cref="RollApplicant"/> to force that applicant
+	/// to Tier 1 (Mid → 9⚡). Stops a brand-new player from rolling a
+	/// Tier 0 / 5⚡ applicant as their second-ever applicant and stalling
+	/// out of the early-game cash recovery. Persisted in <see cref="HRSave"/>
+	/// so a save/load between tutorial seed and the next applicant roll
+	/// doesn't lose the guarantee. One-shot — from applicant #3 onward,
+	/// normal tier weighting resumes.
+	bool _pendingSecondApplicantGuarantee;
+
 	// ── Internal state ──────────────────────────────────────────────────────
 
 	readonly List<EmployeeNPC> _fireQueue = new();
@@ -241,11 +251,14 @@ public sealed class HRManager : Component
 	// ── Progression helpers ──────────────────────────────────────────────────
 
 	/// Maps the active posting tier to a 0–1 quality float for stat generation.
+	/// Headhunter raised from 0.9 → 1.0 on 2026-05-08 in tandem with the
+	/// senior-secondary base lift, so the elite tier actually delivers OVR
+	/// 900+ candidates with reasonable frequency at full progression.
 	float GetJobQuality() => PostingTier switch
 	{
 		JobPostingTier.BulletinBoard => 0.2f,
 		JobPostingTier.CareerSite    => 0.55f,
-		JobPostingTier.Headhunter    => 0.9f,
+		JobPostingTier.Headhunter    => 1.0f,
 		_                            => 0.1f,   // None / unknown
 	};
 
@@ -346,8 +359,8 @@ public sealed class HRManager : Component
 	}
 
 	/// Drop one guaranteed-strong applicant into the inbox: flat 300 stats,
-	/// programmer role, fixed $750/mo salary (anchors the $2.50-per-stat curve),
-	/// no salary bias, no hidden
+	/// programmer role, fixed $750/mo salary (the anchor point of the
+	/// exponential salary curve), no salary bias, no hidden
 	/// "?" gates. Ensures the player has someone obviously worth hiring on
 	/// day 1. Idempotent — does nothing if the inbox already has anyone in
 	/// it. Called from <see cref="OnStart"/> for fresh boots and from
@@ -358,6 +371,16 @@ public sealed class HRManager : Component
 
 		var starter = Employee.GenerateTutorialApplicant( _rng );
 		_applicants.Add( starter );
+
+		// Arm the second-applicant guarantee at the same moment we seed the
+		// tutorial applicant: applicant #1 is this fixed-stats tutorial hire,
+		// applicant #2 (the next Regular roll, whenever it happens) is forced
+		// to Tier 1 / 9⚡ so the player can't roll a Tier 0 / 5⚡ as their
+		// second-ever applicant and stall the early-game cash recovery.
+		// RollApplicant consumes the flag on the next Regular roll; from
+		// applicant #3 onward, normal tier weighting takes over.
+		_pendingSecondApplicantGuarantee = true;
+
 		Notifications.Push( "First Applicant",
 			$"{starter.Name} has applied. Open HR to interview them.",
 			"info", duration: 8f );
@@ -408,6 +431,9 @@ public sealed class HRManager : Component
 		// applicants pile up while the player's stuck on the welcome modal
 		// or hasn't made their first hire yet.
 		if ( TutorialManager.Instance is { IsBlockingTime: true } ) return;
+
+		// Modal / Escape-menu pause.
+		if ( GameManager.Instance is { IsTimePaused: true } )       return;
 
 		// Tick in IN-GAME seconds, not real seconds, so the cadence is
 		// "every N in-game days" regardless of the player's chosen game
@@ -478,16 +504,33 @@ public sealed class HRManager : Component
 	Employee RollApplicant()
 	{
 		EmployeeKind kind = PickApplicantKind();
-		return kind == EmployeeKind.Regular
-			? Employee.GenerateApplicant(
-				_rng,
-				jobQuality:        GetJobQuality(),
-				progressionFactor: GetProgressionFactor() )
-			: Employee.GenerateSpecialApplicant(
+		if ( kind != EmployeeKind.Regular )
+		{
+			return Employee.GenerateSpecialApplicant(
 				_rng,
 				kind:              kind,
 				jobQuality:        GetJobQuality(),
 				progressionFactor: GetProgressionFactor() );
+		}
+
+		// Second-applicant guarantee: applicant #1 is the fixed tutorial
+		// applicant; applicant #2 (the next Regular roll, whenever it
+		// happens — timer-driven or SpawnApplicantNow) is forced to Tier 1
+		// (Mid → 9⚡) so a brand-new player can't roll a Tier 0 / 5⚡ as
+		// their second-ever applicant. One-shot; cleared on consumption,
+		// so applicant #3+ roll natural tier weighting.
+		int? forceTier = null;
+		if ( _pendingSecondApplicantGuarantee )
+		{
+			forceTier = 1;
+			_pendingSecondApplicantGuarantee = false;
+		}
+
+		return Employee.GenerateApplicant(
+			_rng,
+			jobQuality:        GetJobQuality(),
+			progressionFactor: GetProgressionFactor(),
+			forceTier:         forceTier );
 	}
 
 	EmployeeKind PickApplicantKind()
@@ -1078,9 +1121,10 @@ public sealed class HRManager : Component
 	{
 		var dto = new HRSave
 		{
-			FirstInternHired = _firstInternHired,
-			PostingTier      = PostingTier,
-			ApplicantTimer   = _applicantTimer,
+			FirstInternHired           = _firstInternHired,
+			PostingTier                = PostingTier,
+			ApplicantTimer             = _applicantTimer,
+			PendingSecondApplicantGuarantee = _pendingSecondApplicantGuarantee,
 		};
 
 		foreach ( var npc in _staff )
@@ -1121,15 +1165,17 @@ public sealed class HRManager : Component
 
 		if ( dto is null )
 		{
-			_firstInternHired = false;
-			PostingTier       = JobPostingTier.BulletinBoard;
-			_applicantTimer   = 0f;
+			_firstInternHired           = false;
+			PostingTier                 = JobPostingTier.BulletinBoard;
+			_applicantTimer             = 0f;
+			_pendingSecondApplicantGuarantee = false;
 			return;
 		}
 
-		_firstInternHired = dto.FirstInternHired;
-		PostingTier       = dto.PostingTier;
-		_applicantTimer   = dto.ApplicantTimer;
+		_firstInternHired           = dto.FirstInternHired;
+		PostingTier                 = dto.PostingTier;
+		_applicantTimer             = dto.ApplicantTimer;
+		_pendingSecondApplicantGuarantee = dto.PendingSecondApplicantGuarantee;
 
 		foreach ( var save in dto.Applicants )
 			_applicants.Add( ApplicantFromSave( save ) );
@@ -1168,7 +1214,6 @@ public sealed class HRManager : Component
 		ActiveTraining          = npc.ActiveTraining,
 		ResearchTopicId         = npc.ResearchTopicId,
 		DaysIntoCurrentResearch = npc.DaysIntoCurrentResearch,
-		BadMoodImmuneUntilTotalDay = npc.BadMoodImmuneUntilTotalDay,
 		EnergyDrinkUntilTotalDay   = npc.EnergyDrinkUntilTotalDay,
 		AppearanceSeed          = npc.AppearanceSeed,
 		SavedClothing           = new List<Sandbox.ClothingContainer.ClothingEntry>( npc.SavedClothing ?? new List<Sandbox.ClothingContainer.ClothingEntry>() ),
@@ -1295,7 +1340,6 @@ public sealed class HRManager : Component
 		npc.ActiveTraining          = save.ActiveTraining;
 		npc.ResearchTopicId         = save.ResearchTopicId ?? "";
 		npc.DaysIntoCurrentResearch = save.DaysIntoCurrentResearch;
-		npc.BadMoodImmuneUntilTotalDay = save.BadMoodImmuneUntilTotalDay;
 		npc.EnergyDrinkUntilTotalDay   = save.EnergyDrinkUntilTotalDay;
 
 		_staff.Add( npc );

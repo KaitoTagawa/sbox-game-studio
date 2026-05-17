@@ -1,0 +1,259 @@
+// Leaderboards modal — chrome mirrors HRPanel exactly so the visual
+// rhythm stays consistent. Distinguishing accent: gold border to mark
+// the "compete with others" surface.
+
+LeaderboardsPanel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	font-family: Poppins;
+	z-index: 100;
+}
+
+LeaderboardsPanel.open {
+	pointer-events: all;
+}
+
+LeaderboardsPanel.closed .backdrop,
+LeaderboardsPanel.closed .window {
+	display: none;
+}
+
+.backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.55 );
+}
+
+.window {
+	position: absolute;
+	left:   17.5%;
+	right:  17.5%;
+	top:     5%;
+	bottom:  5%;
+	background-color: rgba( 18, 24, 30, 0.96 );
+	border: 2px solid rgba( 230, 200, 110, 0.55 );
+	border-radius: 14px;
+	flex-direction: column;
+	box-shadow: 0px 10px 40px 0px rgba( 0, 0, 0, 0.6 );
+}
+
+// ── Header ─────────────────────────────────────────────────────────────
+
+.header {
+	flex-direction: row;
+	align-items: center;
+	padding: 18px 24px;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
+	gap: 12px;
+}
+
+.title {
+	flex-grow: 1;
+	color: white;
+	font-size: 26px;
+	font-weight: 700;
+	letter-spacing: 2px;
+}
+
+.header-refresh {
+	padding: 8px 16px;
+	background-color: rgba( 230, 200, 110, 0.16 );
+	border: 1px solid rgba( 230, 200, 110, 0.5 );
+	border-radius: 6px;
+	color: rgb( 240, 215, 130 );
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	cursor: pointer;
+}
+
+.header-refresh:hover {
+	background-color: rgba( 230, 200, 110, 0.28 );
+	border-color: rgb( 230, 200, 110 );
+}
+
+.header-refresh.disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.header-refresh.disabled:hover {
+	background-color: rgba( 230, 200, 110, 0.16 );
+	border-color: rgba( 230, 200, 110, 0.5 );
+}
+
+.close-btn {
+	width: 36px;
+	height: 36px;
+	background-color: rgba( 255, 255, 255, 0.05 );
+	border-radius: 6px;
+	color: white;
+	font-size: 22px;
+	font-weight: 700;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+}
+
+.close-btn:hover {
+	background-color: rgba( 220, 80, 80, 0.6 );
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────
+
+.cat-tabs {
+	flex-direction: row;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.06 );
+}
+
+.cat-tab {
+	flex-direction: column;
+	flex-grow: 1;
+	flex-basis: 0;
+	padding: 14px 18px;
+	cursor: pointer;
+	border-right: 1px solid rgba( 255, 255, 255, 0.04 );
+	align-items: center;
+	gap: 2px;
+}
+
+.cat-tab:last-child { border-right: 1px solid transparent; }
+
+.cat-tab:hover {
+	background-color: rgba( 230, 200, 110, 0.06 );
+}
+
+.cat-tab.active {
+	background-color: rgba( 230, 200, 110, 0.14 );
+	border-bottom: 2px solid rgb( 230, 200, 110 );
+}
+
+.cat-tab-icon {
+	font-size: 24px;
+	line-height: 28px;
+	margin-bottom: 2px;
+}
+
+.cat-tab-name {
+	color: white;
+	font-size: 15px;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.cat-tab-meta {
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+// ── Body ───────────────────────────────────────────────────────────────
+
+.body {
+	flex-direction: column;
+	flex-grow: 1;
+	flex-shrink: 1;
+	flex-basis: 0;
+	min-height: 0;
+	overflow: scroll;
+	padding: 18px 24px;
+	gap: 4px;
+}
+
+.state-msg {
+	color: rgba( 255, 255, 255, 0.7 );
+	font-size: 16px;
+	padding: 40px 12px;
+	text-align: center;
+	white-space: normal;
+}
+
+.state-msg.state-empty {
+	color: rgba( 255, 255, 255, 0.5 );
+	font-style: italic;
+}
+
+// ── Table ──────────────────────────────────────────────────────────────
+
+.table-head {
+	flex-direction: row;
+	align-items: center;
+	gap: 14px;
+	padding: 8px 14px;
+	margin-bottom: 6px;
+	color: rgba( 255, 255, 255, 0.55 );
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
+}
+
+.entry {
+	flex-direction: row;
+	align-items: center;
+	gap: 14px;
+	padding: 12px 14px;
+	background-color: rgba( 255, 255, 255, 0.04 );
+	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	border-radius: 8px;
+	flex-shrink: 0;
+}
+
+// Top-three highlight — gold ribbon for #1, silver/bronze tints for 2/3.
+.entry:nth-child(2) {
+	background-color: rgba( 230, 200, 110, 0.14 );
+	border-color: rgba( 230, 200, 110, 0.6 );
+}
+.entry:nth-child(3) {
+	background-color: rgba( 200, 200, 220, 0.10 );
+	border-color: rgba( 200, 200, 220, 0.5 );
+}
+.entry:nth-child(4) {
+	background-color: rgba( 200, 140, 90, 0.10 );
+	border-color: rgba( 200, 140, 90, 0.5 );
+}
+
+.col-rank {
+	width: 60px;
+	color: rgba( 255, 255, 255, 0.7 );
+	font-size: 17px;
+	font-weight: 700;
+	text-align: right;
+}
+
+.entry .col-rank {
+	color: white;
+}
+
+.col-name {
+	flex-grow: 1;
+	color: white;
+	font-size: 17px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.col-value {
+	width: 200px;
+	text-align: right;
+	color: rgb( 240, 215, 130 );
+	font-size: 17px;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+// ── Footer ─────────────────────────────────────────────────────────────
+
+.footer {
+	flex-shrink: 0;
+	padding: 12px 24px;
+	border-top: 1px solid rgba( 255, 255, 255, 0.06 );
+	color: rgba( 255, 255, 255, 0.4 );
+	font-size: 12px;
+	font-style: italic;
+	text-align: center;
+	white-space: normal;
+}

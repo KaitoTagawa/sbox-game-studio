@@ -83,33 +83,19 @@ public sealed class GameProject
 	public int   SoundBonusPoints    { get; set; }
 	public int   GraphicsBonusPoints { get; set; }
 
-	/// Persistent pillar-points penalties accumulated during ticks where
-	/// any contributing NPC is in <see cref="EmployeeMood.Bad"/>. Mirror
-	/// of the bonus tracker — needed because the live-ceiling model
-	/// (<c>points = progress × target + bonus</c>) silently recovers
-	/// missed ground the moment mood heals. Accumulating the per-tick
-	/// "would-have-earned at full mood" delta makes the time spent at
-	/// half strength a permanent score tax.
-	public int   DesignPenaltyPoints   { get; set; }
-	public int   SoundPenaltyPoints    { get; set; }
-	public int   GraphicsPenaltyPoints { get; set; }
-
-	/// First-time-per-production gates for the mood-event toasts. The
-	/// player gets ONE warning toast for the first frustrated NPC and ONE
-	/// info toast for the first NPC with an idea — every subsequent mood
-	/// roll in that production is silent (just the in-world FX), so the
-	/// notification stack doesn't get spammed at busy late-game studios.
-	/// Reset when a new project enters Production.
-	public bool  BadMoodToastShown    { get; set; }
+	/// First-time-per-production gate for the Good-mood (Idea) toast. The
+	/// player gets ONE info toast for the first NPC with an idea — every
+	/// subsequent Good roll in that production is silent (just the in-world
+	/// FX), so the notification stack doesn't get spammed at busy late-game
+	/// studios. Reset when a new project enters Production.
 	public bool  GoodMoodToastShown   { get; set; }
 
 	/// Set true at Production-entry on the player's 2nd game so the next
-	/// eligible NPC mood-tick is forced to fire (Good and Bad respectively).
-	/// Guarantees the player sees a Good and a Bad mood event during their
-	/// second project so they learn the mood / chat mechanic exists.
-	/// Cleared by EmployeeNPC.TickMood once consumed.
+	/// eligible NPC mood-tick is forced to fire Good. Guarantees the player
+	/// sees a Good-mood event during their second project so they learn
+	/// the suggestion / chat mechanic exists. Cleared by EmployeeNPC.TickMood
+	/// once consumed.
 	public bool  GuaranteeGoodMoodPending { get; set; }
-	public bool  GuaranteeBadMoodPending  { get; set; }
 
 	// ── Lifecycle ───────────────────────────────────────────────────────────
 

@@ -164,13 +164,40 @@
 			else
 			{
 				<div class="trophies">
-					@if ( Trophies.Count == 0 )
+					@if ( Trophies.Count == 0 && Medaled.Count == 0 )
 					{
 						<div class="empty-big">
 							<div class="empty-title">No trophies yet</div>
 						</div>
 					}
-					else
+
+					@* Per-game medals — Bronze / Silver / Gold awarded at ship
+					   time on each released game whose highest pillar score
+					   crosses 200 / 500 / 1000. Listed most-recent-first. *@
+					@if ( Medaled.Count > 0 )
+					{
+						<div class="trophy-year">
+							<div class="trophy-year-head">Medals · @Medaled.Count</div>
+							<div class="trophy-grid">
+								@foreach ( var g in Medaled )
+								{
+									var game = g;
+									<div class="trophy-card @game.Medal.BadgeClass()">
+										<div class="trophy-icon">@game.Medal.Icon()</div>
+										<div class="trophy-info">
+											<div class="trophy-division">@game.Medal.DisplayName()</div>
+											<div class="trophy-game">@game.Title</div>
+											<div class="trophy-citation">D @game.DesignPoints · S @game.SoundPoints · G @game.GraphicsPoints</div>
+										</div>
+									</div>
+								}
+							</div>
+						</div>
+					}
+
+					@* Annual GOTY divisions — currently dormant (no ceremony
+					   pipeline wired) but kept ready for the future awards. *@
+					@if ( Trophies.Count > 0 )
 					{
 						@foreach ( var year in TrophyYears )
 						{
@@ -230,6 +257,23 @@
 	private IReadOnlyList<Trophy> Trophies =>
 		Gallery.Instance?.Trophies ?? System.Array.Empty<Trophy>();
 
+	/// Shipped games with a per-game medal (Bronze / Silver / Gold), most
+	/// recent first. Drives the Trophies tab's Medals section. Filters the
+	/// underlying ShippedGames list — None-tier ships are excluded.
+	private IReadOnlyList<ShippedGame> Medaled
+	{
+		get
+		{
+			var list = new List<ShippedGame>();
+			var gal = Gallery.Instance;
+			if ( gal is null ) return list;
+			foreach ( var g in gal.ShippedGames )
+				if ( g.Medal != GameMedal.None ) list.Add( g );
+			list.Reverse();   // most recent first
+			return list;
+		}
+	}
+
 	private void SetSection( GallerySection s ) => Gallery.Instance?.SetSection( s );
 	private void SetFilter ( UnlocksFilter  f ) => Gallery.Instance?.SetUnlocksFilter( f );
 	private void Close()                        => Gallery.Instance?.SetOpen( false );
@@ -252,7 +296,7 @@
 			{
 				new( GallerySection.Unlocks,   "Unlocks",    "🔓", $"{unlocks} / {unTotal}" ),
 				new( GallerySection.PastGames, "Past Games", "🎮", $"{ShippedGames.Count}"   ),
-				new( GallerySection.Trophies,  "Trophies",   "🏆", $"{Trophies.Count}"       ),
+				new( GallerySection.Trophies,  "Trophies",   "🏆", $"{Trophies.Count + Medaled.Count}" ),
 			};
 		}
 	}
@@ -522,6 +566,7 @@
 		hc.Add( Achievements.AbilitiesDiscovered.Count );
 		hc.Add( ShippedGames.Count );
 		hc.Add( Trophies.Count );
+		hc.Add( Medaled.Count );
 		hc.Add( TotalRevenueAcrossGames );
 		hc.Add( Gallery.Instance?.ExpandedReviewGame?.Title ?? "" );
 		return hc.ToHashCode();

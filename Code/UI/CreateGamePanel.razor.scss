@@ -49,7 +49,7 @@ CreateGamePanel.closed .window {
 	// height: 720px;
 
 	background-color: rgba( 18, 24, 30, 0.96 );
-	border: 2px solid rgba( 110, 220, 140, 0.5 );
+	border: 2px solid rgba( 70, 200, 170, 0.55 );
 	border-radius: 14px;
 	flex-direction: column;
 	box-shadow: 0px 10px 40px 0px rgba( 0, 0, 0, 0.6 );
@@ -526,6 +526,7 @@ CreateGamePanel.closed .window {
 }
 
 .time-total.zero   { color: rgba( 255, 255, 255, 0.4 ); }
+.time-total.under  { color: rgb( 235, 200, 110 ); }
 .time-total.ok     { color: rgb( 110, 220, 140 ); }
 .time-total.crunch { color: rgb( 235, 110, 110 ); }
 

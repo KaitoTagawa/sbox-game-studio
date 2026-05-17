@@ -1,0 +1,92 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+@* Letterbox modal — list of senders + READ buttons. Click READ opens
+   the dedicated LetterReaderPanel sub-modal on top, mirroring the
+   HR Inbox → Interview pattern. *@
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop" onclick=@Close></div>
+	<div class="window">
+		<div class="header">
+			<div class="title">LETTERBOX</div>
+			<div class="header-meta">@HeaderCountLabel</div>
+			<div class="close-btn" onclick=@Close>×</div>
+		</div>
+
+		<div class="list">
+			@* Inbox shows ONLY unread letters — once READ is clicked,
+			   the letter is "consumed" and disappears from here. Quest
+			   letters move on to the Quests menu (still visible there
+			   until fulfilled by shipping a matching genre). Nice
+			   letters grant their motivation effect on read and don't
+			   need a follow-up surface. *@
+			@if ( UnreadCount == 0 )
+			{
+				<div class="empty">Empty letterbox</div>
+			}
+			else
+			{
+				@for ( int i = Letters.Count - 1; i >= 0; i-- )
+				{
+					var letter = Letters[i];
+					if ( letter.Read ) continue;
+					<div class="row @(letter.IsQuest ? "row-quest" : "") row-unread">
+						<div class="row-info">
+							<div class="row-sender">@letter.SenderName</div>
+							<div class="row-game">re: @letter.GameTitle</div>
+						</div>
+						@if ( letter.IsQuest )
+						{
+							<div class="row-badge">REQUEST</div>
+						}
+						<div class="btn read" onclick=@(() => Read( letter ))>READ</div>
+					</div>
+				}
+			}
+		</div>
+	</div>
+</root>
+
+@code {
+	private bool IsOpen => Letterbox.Instance?.IsOpen ?? false;
+
+	private IReadOnlyList<FanLetter> Letters
+		=> Letterbox.Instance?.Letters ?? System.Array.Empty<FanLetter>();
+
+	/// Unread (i.e. still-in-the-inbox) letter count. Drives both the
+	/// empty-state branch and the header "N letters" label so the
+	/// numbers reflect what the player actually sees in the list.
+	private int UnreadCount
+	{
+		get
+		{
+			int n = 0;
+			foreach ( var l in Letters )
+				if ( !l.Read ) n++;
+			return n;
+		}
+	}
+
+	private void Close() => Letterbox.Instance?.SetOpen( false );
+
+	/// Click READ on a letter row — pop the LetterReaderPanel sub-modal.
+	/// The reader's Done click + the letter's `Read` flag together do
+	/// the consume work: the letter disappears from this list once read.
+	private void Read( FanLetter letter ) =>
+		Letterbox.Instance?.StartReading( letter );
+
+	private string HeaderCountLabel
+	{
+		get
+		{
+			int n = UnreadCount;
+			if ( n == 0 ) return "";
+			return n == 1 ? "1 letter" : $"{n} letters";
+		}
+	}
+
+	protected override int BuildHash() =>
+		System.HashCode.Combine( IsOpen, Letters.Count, UnreadCount );
+}

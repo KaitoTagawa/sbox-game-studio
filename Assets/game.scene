@@ -6,7 +6,7 @@
       "__version": 2,
       "Flags": 0,
       "Name": "Player Controller",
-      "Position": "79.01017,-7.81896067,0",
+      "Position": "-167.510468,-461.597412,0",
       "Rotation": "0,0,0,1",
       "Scale": "1.5,1.5,1.5",
       "Tags": "",
@@ -96,7 +96,7 @@
           "Flags": 1,
           "AngularDamping": 1,
           "EnableImpactDamage": true,
-          "EnhancedCcd": false,
+          "EnhancedCcd": true,
           "Gravity": true,
           "GravityScale": 1,
           "ImpactDamage": 0,
@@ -120,7 +120,9 @@
           "OnComponentStart": null,
           "OnComponentUpdate": null,
           "OverrideMassCenter": true,
+          "PreciseContacts": true,
           "RigidbodyFlags": "DisableCollisionSounds",
+          "SleepThreshold": 2,
           "StartAsleep": false
         },
         {
@@ -297,8 +299,8 @@
           "__version": 2,
           "Flags": 0,
           "Name": "Body",
-          "Position": "-68.374054,-168.220001,19.3443623",
-          "Rotation": "0,0,0,1",
+          "Position": "21.7570591,-258.503906,0",
+          "Rotation": "0,0,0.707106769,0.707106769",
           "Scale": "1,1,1",
           "Tags": "",
           "Enabled": true,
@@ -356,7 +358,7 @@
           ],
           "Children": [
             {
-              "__guid": "05954316-1160-4ce7-b41c-3c6819d26ab6",
+              "__guid": "80ca5582-3201-4d37-b38f-de8052c174ed",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - hair.loose.grey",
@@ -373,7 +375,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "58dc177c-f3be-4f2c-a80f-af887de41b84",
+                  "__guid": "8245ef38-f17c-4039-8d84-975c573ba1c6",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -425,7 +427,7 @@
               "Children": []
             },
             {
-              "__guid": "75f3a851-a1e2-4893-8782-68e38023cf3f",
+              "__guid": "152b38fd-ac20-4270-95fa-8d28276ad02b",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - blue_shirt",
@@ -442,7 +444,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "f3ee8cde-94d1-45e2-9796-4d013b9d7016",
+                  "__guid": "b37a9829-21db-4f7a-94ec-11d9638e4d64",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -494,7 +496,7 @@
               "Children": []
             },
             {
-              "__guid": "5059c32e-6eae-4e1d-af7b-96055e3022c1",
+              "__guid": "0bcc7958-31bc-46ab-ba12-8ceae49249c3",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - blue_sneakers",
@@ -511,7 +513,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "4b2f336d-e6b3-400b-8521-67e705c2a908",
+                  "__guid": "c1725265-a8a9-46c7-91e4-4269266965a3",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -563,7 +565,7 @@
               "Children": []
             },
             {
-              "__guid": "f1e99ae6-bd85-45ee-b7d2-0f6628cde9f1",
+              "__guid": "2c200317-4f48-4482-b6a1-8d8ed9322ae5",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - brown_leather_jacket",
@@ -580,7 +582,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "b2efdbf4-2f09-41eb-a8ed-ba59da2bb0a1",
+                  "__guid": "9f6aade9-141f-46da-bb3b-56d213372097",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -632,7 +634,7 @@
               "Children": []
             },
             {
-              "__guid": "17ca949a-3f21-4a59-b2b0-4cabaeea4314",
+              "__guid": "32532140-ea09-40f8-8225-9c5ce2ca766c",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - nerdy_glasses",
@@ -649,7 +651,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "984c1078-e4f7-4673-b254-2ef5cc06bcff",
+                  "__guid": "5e5948fc-8460-4cc5-836e-dfd359041dd4",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -846,7 +848,7 @@
       "Position": "0,0,0",
       "Rotation": "0,0,0,1",
       "Scale": "1,1,1",
-      "Tags": "",
+      "Tags": "hidden",
       "Enabled": true,
       "NetworkMode": 2,
       "NetworkFlags": 0,
@@ -961,16 +963,16 @@
           "Flags": 0,
           "FieldOfView": 90,
           "InvertY": false,
-          "MasterVolume": 1,
+          "MasterVolume": 0.5,
           "MouseSensitivity": 1,
-          "MusicVolume": 0.7,
+          "MusicVolume": 0.5,
           "OnComponentDestroy": null,
           "OnComponentDisabled": null,
           "OnComponentEnabled": null,
           "OnComponentFixedUpdate": null,
           "OnComponentStart": null,
           "OnComponentUpdate": null,
-          "SfxVolume": 0.85
+          "SfxVolume": 0.5
         },
         {
           "__type": "GameProjectManager",
@@ -1015,7 +1017,8 @@
           "OnComponentEnabled": null,
           "OnComponentFixedUpdate": null,
           "OnComponentStart": null,
-          "OnComponentUpdate": null
+          "OnComponentUpdate": null,
+          "ViewConeDegrees": 100
         }
       ],
       "Children": []
@@ -1118,7 +1121,7 @@
           "OnComponentFixedUpdate": null,
           "OnComponentStart": null,
           "OnComponentUpdate": null,
-          "PricePerMinute": 0.02,
+          "PricePerMinute": 0.018,
           "ReleaseWindowMonths": 6,
           "ReviewDelayDays": 14
         }
@@ -1157,7 +1160,7 @@
           "Scale": 1,
           "ScaleStrategy": "ConsistentHeight",
           "TargetCamera": null,
-          "ZIndex": 100
+          "ZIndex": 110
         },
         {
           "__type": "Sandbox.UI.TrainingPanel",
@@ -1191,6 +1194,7 @@
           "BinBought": false,
           "ChairAssigned": false,
           "ChairBought": false,
+          "FirstGoodMoodToastSeen": false,
           "LastAcknowledgedPhase": null,
           "OnComponentDestroy": null,
           "OnComponentDisabled": null,
@@ -1334,6 +1338,30 @@
           "OnComponentFixedUpdate": null,
           "OnComponentStart": null,
           "OnComponentUpdate": null
+        },
+        {
+          "__type": "Sandbox.UI.HRPanel",
+          "__guid": "1f205bce-2ee3-4ace-929b-9cbe29394c0a",
+          "__enabled": true,
+          "Flags": 0,
+          "OnComponentDestroy": null,
+          "OnComponentDisabled": null,
+          "OnComponentEnabled": null,
+          "OnComponentFixedUpdate": null,
+          "OnComponentStart": null,
+          "OnComponentUpdate": null
+        },
+        {
+          "__type": "HR",
+          "__guid": "752b471c-ca13-45b6-9e80-06a0108f0e82",
+          "__enabled": true,
+          "Flags": 0,
+          "OnComponentDestroy": null,
+          "OnComponentDisabled": null,
+          "OnComponentEnabled": null,
+          "OnComponentFixedUpdate": null,
+          "OnComponentStart": null,
+          "OnComponentUpdate": null
         }
       ],
       "Children": []
@@ -1399,6 +1427,102 @@
         {
           "__type": "Workstations",
           "__guid": "64a8800c-0b59-4de0-8814-0435f0ef94ca",
+          "__enabled": true,
+          "Flags": 0,
+          "OnComponentDestroy": null,
+          "OnComponentDisabled": null,
+          "OnComponentEnabled": null,
+          "OnComponentFixedUpdate": null,
+          "OnComponentStart": null,
+          "OnComponentUpdate": null
+        },
+        {
+          "__type": "Sandbox.UI.LeaderboardsPanel",
+          "__guid": "b5a31d40-c2e1-4f6b-8a91-d23e9c47f105",
+          "__enabled": true,
+          "Flags": 0,
+          "OnComponentDestroy": null,
+          "OnComponentDisabled": null,
+          "OnComponentEnabled": null,
+          "OnComponentFixedUpdate": null,
+          "OnComponentStart": null,
+          "OnComponentUpdate": null
+        },
+        {
+          "__type": "Leaderboards",
+          "__guid": "b5a31d40-c2e1-4f6b-8a91-d23e9c47f106",
+          "__enabled": true,
+          "Flags": 0,
+          "OnComponentDestroy": null,
+          "OnComponentDisabled": null,
+          "OnComponentEnabled": null,
+          "OnComponentFixedUpdate": null,
+          "OnComponentStart": null,
+          "OnComponentUpdate": null
+        },
+        {
+          "__type": "Sandbox.UI.SavePanel",
+          "__guid": "c7e92a18-4d3b-4a52-b8c1-e74f2a39d804",
+          "__enabled": true,
+          "Flags": 0,
+          "OnComponentDestroy": null,
+          "OnComponentDisabled": null,
+          "OnComponentEnabled": null,
+          "OnComponentFixedUpdate": null,
+          "OnComponentStart": null,
+          "OnComponentUpdate": null
+        },
+        {
+          "__type": "SaveMenu",
+          "__guid": "c7e92a18-4d3b-4a52-b8c1-e74f2a39d805",
+          "__enabled": true,
+          "Flags": 0,
+          "OnComponentDestroy": null,
+          "OnComponentDisabled": null,
+          "OnComponentEnabled": null,
+          "OnComponentFixedUpdate": null,
+          "OnComponentStart": null,
+          "OnComponentUpdate": null
+        },
+        {
+          "__type": "Sandbox.UI.LetterboxPanel",
+          "__guid": "d8f30b29-5e4c-4d63-9c52-f085b3a47e16",
+          "__enabled": true,
+          "Flags": 0,
+          "OnComponentDestroy": null,
+          "OnComponentDisabled": null,
+          "OnComponentEnabled": null,
+          "OnComponentFixedUpdate": null,
+          "OnComponentStart": null,
+          "OnComponentUpdate": null
+        },
+        {
+          "__type": "Letterbox",
+          "__guid": "d8f30b29-5e4c-4d63-9c52-f085b3a47e17",
+          "__enabled": true,
+          "Flags": 0,
+          "OnComponentDestroy": null,
+          "OnComponentDisabled": null,
+          "OnComponentEnabled": null,
+          "OnComponentFixedUpdate": null,
+          "OnComponentStart": null,
+          "OnComponentUpdate": null
+        },
+        {
+          "__type": "Sandbox.UI.LetterReaderPanel",
+          "__guid": "d8f30b29-5e4c-4d63-9c52-f085b3a47e18",
+          "__enabled": true,
+          "Flags": 0,
+          "OnComponentDestroy": null,
+          "OnComponentDisabled": null,
+          "OnComponentEnabled": null,
+          "OnComponentFixedUpdate": null,
+          "OnComponentStart": null,
+          "OnComponentUpdate": null
+        },
+        {
+          "__type": "Sandbox.UI.QuestsPanel",
+          "__guid": "d8f30b29-5e4c-4d63-9c52-f085b3a47e19",
           "__enabled": true,
           "Flags": 0,
           "OnComponentDestroy": null,
@@ -17133,7 +17257,9 @@
                       "OnComponentStart": null,
                       "OnComponentUpdate": null,
                       "OverrideMassCenter": false,
+                      "PreciseContacts": false,
                       "RigidbodyFlags": 0,
+                      "SleepThreshold": 2,
                       "StartAsleep": false
                     },
                     {
@@ -17272,7 +17398,9 @@
                       "OnComponentStart": null,
                       "OnComponentUpdate": null,
                       "OverrideMassCenter": false,
+                      "PreciseContacts": false,
                       "RigidbodyFlags": 0,
+                      "SleepThreshold": 2,
                       "StartAsleep": false
                     },
                     {
@@ -17411,7 +17539,9 @@
                       "OnComponentStart": null,
                       "OnComponentUpdate": null,
                       "OverrideMassCenter": false,
+                      "PreciseContacts": false,
                       "RigidbodyFlags": 0,
+                      "SleepThreshold": 2,
                       "StartAsleep": false
                     },
                     {
@@ -20814,13 +20944,13 @@
       "Children": []
     },
     {
-      "__guid": "7df15d32-e0e8-4a1c-a471-4b5ca56ac7a1",
+      "__guid": "32767cf0-3e0b-4713-a370-a864685359f2",
       "__version": 2,
       "Flags": 0,
-      "Name": "toilet_a",
-      "Position": "364.838013,-426.494568,0.228655159",
-      "Rotation": "0,0,1,-4.37113883E-08",
-      "Scale": "1.70000005,1.70000005,1.70000005",
+      "Name": "GameSound",
+      "Position": "0,-71.4566956,90.6958771",
+      "Rotation": "0,0,0,1",
+      "Scale": "1,1,1",
       "Tags": "",
       "Enabled": true,
       "NetworkMode": 2,
@@ -20830,114 +20960,32 @@
       "OwnerTransfer": 1,
       "Components": [
         {
-          "__type": "Sandbox.Prop",
-          "__guid": "2516da66-1f27-4b25-a59b-5f21e0addc20",
+          "__type": "SFX",
+          "__guid": "cf54120e-b4ef-4e62-94f8-4c4590160f49",
           "__enabled": true,
           "Flags": 0,
-          "BodyGroups": 18446744073709551615,
-          "Health": 0,
-          "IsStatic": true,
-          "MaterialGroup": null,
-          "Model": "models/sbox_props/toilet_a/toilet_a.vmdl",
           "OnComponentDestroy": null,
           "OnComponentDisabled": null,
           "OnComponentEnabled": null,
           "OnComponentFixedUpdate": null,
           "OnComponentStart": null,
           "OnComponentUpdate": null,
-          "OnPropBreak": null,
-          "OnPropTakeDamage": null,
-          "StartAsleep": false,
-          "Tint": "1,1,1,1"
+          "Purchase": "sound/money.sound",
+          "UIClick": "sound/button.sound",
+          "Warning": "sound/red_notif.sound"
         },
         {
-          "__type": "Sandbox.SkinnedModelRenderer",
-          "__guid": "29d1b2d6-c59a-4d6f-b03a-8566966ee866",
+          "__type": "Music",
+          "__guid": "60783a27-472f-4323-8115-ce2bc409bea2",
           "__enabled": true,
           "Flags": 0,
-          "AnimationGraph": null,
-          "BodyGroups": 18446744073709551615,
-          "BoneMergeTarget": null,
-          "CreateAttachments": false,
-          "CreateBoneObjects": false,
-          "LodOverride": null,
-          "MaterialGroup": null,
-          "MaterialOverride": null,
-          "Materials": null,
-          "Model": "models/sbox_props/toilet_a/toilet_a.vmdl",
-          "Morphs": {},
           "OnComponentDestroy": null,
           "OnComponentDisabled": null,
           "OnComponentEnabled": null,
           "OnComponentFixedUpdate": null,
           "OnComponentStart": null,
           "OnComponentUpdate": null,
-          "Parameters": {
-            "bools": {},
-            "ints": {},
-            "floats": {},
-            "vectors": {},
-            "rotations": {}
-          },
-          "PlaybackRate": 1,
-          "RenderOptions": {
-            "GameLayer": true,
-            "OverlayLayer": false,
-            "BloomLayer": false,
-            "AfterUILayer": false
-          },
-          "RenderType": "On",
-          "Sequence": {
-            "Name": null,
-            "Looping": true,
-            "Blending": false
-          },
-          "Tint": "1,1,1,1",
-          "UseAnimGraph": true
-        },
-        {
-          "__type": "Sandbox.ModelCollider",
-          "__guid": "90fef752-628c-4cac-9934-cd61fab2b4f2",
-          "__enabled": true,
-          "Flags": 0,
-          "ColliderFlags": 0,
-          "Elasticity": null,
-          "Friction": null,
-          "IsTrigger": false,
-          "Model": "models/sbox_props/toilet_a/toilet_a.vmdl",
-          "OnComponentDestroy": null,
-          "OnComponentDisabled": null,
-          "OnComponentEnabled": null,
-          "OnComponentFixedUpdate": null,
-          "OnComponentStart": null,
-          "OnComponentUpdate": null,
-          "OnObjectTriggerEnter": null,
-          "OnObjectTriggerExit": null,
-          "OnTriggerEnter": null,
-          "OnTriggerExit": null,
-          "RollingResistance": null,
-          "Static": true,
-          "Surface": null,
-          "SurfaceVelocity": "0,0,0"
-        },
-        {
-          "__type": "PlacementSlot",
-          "__guid": "d284deda-8a11-445e-a203-9bbe66754a18",
-          "__enabled": true,
-          "Flags": 0,
-          "DefaultVariant": null,
-          "Kind": "Toilet",
-          "Label": "",
-          "Mode": "Workstation",
-          "OnComponentDestroy": null,
-          "OnComponentDisabled": null,
-          "OnComponentEnabled": null,
-          "OnComponentFixedUpdate": null,
-          "OnComponentStart": null,
-          "OnComponentUpdate": null,
-          "PreferredItemKind": "Toilet",
-          "RequiredAchievement": null,
-          "SitSpot": null
+          "Track": "sound/jazz.sound"
         }
       ],
       "Children": []
@@ -20963,13 +21011,18 @@
       "CustomBounds": false
     },
     "GameObjectSystems": {
-      "Sandbox.MovieMaker.MovieRecorderSystem": {
-        "DisableClientRecording": false
-      },
       "Sandbox.SelectionSetsSystem": {
         "Data": {
           "SelectionSets": []
         }
+      },
+      "Sandbox.Clutter.ClutterGridSystem": {
+        "Storage": {
+          "$blob": "c55e54b0-e5fb-46ec-a840-541260b14838"
+        }
+      },
+      "Sandbox.MovieMaker.MovieRecorderSystem": {
+        "DisableClientRecording": false
       }
     }
   },
@@ -20990,7 +21043,6 @@
     "facepunch.couch#139679",
     "facepunch.glass_a#111263",
     "facepunch.office_desk#149879",
-    "facepunch.toilet_a#143937",
     "facepunch.wooden_chair_a#43573",
     "frogpond.bartable#12947",
     "gtavteam.gta5apamphaccplanttall01#97050",

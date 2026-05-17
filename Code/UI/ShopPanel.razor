@@ -84,7 +84,16 @@
 	private enum ShopTab { Furniture, Consumable }
 	private ShopTab _activeTab = ShopTab.Furniture;
 	private ShopTab ActiveTab => _activeTab;
-	private void SetTab( ShopTab t ) { _activeTab = t; }
+	private void SetTab( ShopTab t )
+	{
+		_activeTab = t;
+		// Visiting the Consumable tab is the dismiss-trigger for the sticky
+		// "consumables unlocked at 3 games" toast pushed by Shop.cs. Calling
+		// RemoveByTag is idempotent (no-op when the tag isn't present), so
+		// this fires safely on every Consumable click.
+		if ( t == ShopTab.Consumable )
+			Notifications.RemoveByTag( Shop.ConsumablesUnlockedToastTag );
+	}
 
 	private long Money => GameManager.Instance?.Money ?? 0;
 	private string MoneyText => Money.ToString( "N0" );

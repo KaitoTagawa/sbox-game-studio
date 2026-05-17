@@ -43,6 +43,11 @@ public sealed class GameSave
 	public GalleryShipsSave Gallery      { get; set; } = new();
 	public GameProjectSave  ActiveProject { get; set; }
 	public TutorialSave     Tutorial     { get; set; } = new();
+
+	/// Letterbox + Quests state (ADR-0003). New at SchemaVersion 3 —
+	/// legacy v1 / v2 saves get an empty <see cref="LetterboxSave"/>
+	/// via the migrator, so the next ship spawns letters normally.
+	public LetterboxSave    Letterbox    { get; set; } = new();
 }
 
 // ── Tutorial ────────────────────────────────────────────────────────────
@@ -65,7 +70,6 @@ public sealed class TutorialSave
 	/// normally; the flag exists to keep the very first one sticky so the
 	/// player can't miss the new mechanic.
 	public bool           FirstGoodMoodToastSeen { get; set; } = false;
-	public bool           FirstBadMoodToastSeen  { get; set; } = false;
 }
 
 // ── Calendar / Economy ──────────────────────────────────────────────────
@@ -102,6 +106,26 @@ public sealed class AchievementsSave
 	public int                   TotalHires          { get; set; }
 	public long                  PeakMonthlyPlayers  { get; set; }
 	public int                   GamesShipped        { get; set; }
+
+	/// Highest <c>GameManager.Money</c> ever held during this run.
+	/// Tracked per-frame in <c>GameManager.OnUpdate</c> via
+	/// <c>Achievements.RecordBalance</c>. Drives the "Peak Wallet"
+	/// leaderboard (see ADR-0002). Added at SchemaVersion 2 — legacy v1
+	/// saves load with PeakBalance = 0 (DTO default).
+	public long                  PeakBalance         { get; set; }
+
+	/// Lifetime fan-letter count this run. Drives the FirstLetter /
+	/// Letters10 / Letters50 achievements (ADR-0003). Additive field —
+	/// legacy saves load with 0 (the run hasn't received any letters
+	/// before the ADR-0003 implementation landed).
+	public int                   LettersReceived     { get; set; }
+
+	/// Per-tier counts of medals awarded this run. Drive the
+	/// FirstBronzeMedal / FirstSilverMedal / FirstGoldMedal achievements.
+	/// Additive — legacy saves load with 0.
+	public int                   BronzeMedalsAwarded { get; set; }
+	public int                   SilverMedalsAwarded { get; set; }
+	public int                   GoldMedalsAwarded   { get; set; }
 }
 
 // ── Founder ─────────────────────────────────────────────────────────────
@@ -131,6 +155,14 @@ public sealed class HRSave
 	public bool                    FirstInternHired  { get; set; }
 	public JobPostingTier          PostingTier       { get; set; } = JobPostingTier.BulletinBoard;
 	public float                   ApplicantTimer    { get; set; }
+
+	/// True between tutorial-applicant seed and the next Regular applicant
+	/// roll: the next Regular applicant (applicant #2 overall) is forced to
+	/// Tier 1 (Mid → 9⚡) so a new player has a fair shot at recovering
+	/// financially post-tutorial. One-shot; <see cref="HRManager.RollApplicant"/>
+	/// clears it on use, and applicants from #3 onward roll natural tier
+	/// weighting.
+	public bool                    PendingSecondApplicantGuarantee { get; set; }
 }
 
 /// <summary>
@@ -157,7 +189,6 @@ public sealed class EmployeeSave
 	public TrainingSession       ActiveTraining    { get; set; }
 	public string                ResearchTopicId   { get; set; } = "";
 	public float                 DaysIntoCurrentResearch { get; set; }
-	public int                   BadMoodImmuneUntilTotalDay { get; set; }
 	public int                   EnergyDrinkUntilTotalDay   { get; set; }
 	public int                   AppearanceSeed    { get; set; }
 	public List<Sandbox.ClothingContainer.ClothingEntry> SavedClothing    { get; set; } = new();
@@ -290,6 +321,94 @@ public sealed class WorkerRefSave
 {
 	public bool   IsFounder    { get; set; }
 	public string EmployeeName { get; set; } = "";
+}
+
+// ── Letterbox / Quests (per ADR-0003) ──────────────────────────────────
+
+/// <summary>
+/// Snapshot of <c>Letterbox</c> — fan letters received this run + the
+/// "first-letter ever seen" ack flag. Quests are derived from
+/// <see cref="Letters"/> (filter by <see cref="FanLetter.IsQuest"/>)
+/// — no separate list. Lifetime received-letter count for achievement
+/// evaluation lives on <c>Achievements.LettersReceived</c>, mirroring
+/// the existing <c>GamesShipped</c> / <c>TotalHires</c> counter pattern.
+/// </summary>
+public sealed class LetterboxSave
+{
+	public List<FanLetter> Letters         { get; set; } = new();
+	public bool            FirstLetterSeen { get; set; }
+
+	/// Game titles we've already evaluated for letter spawn. Independent
+	/// of <see cref="Letters"/> because a 35% spawn roll can decide "no
+	/// letter this time" — without tracking the decision, the next
+	/// OnDayStart would re-roll and break the once-per-ship guarantee.
+	public List<string>    DecidedFor      { get; set; } = new();
+
+	/// Absolute in-game day index (Year×360 + (Month-1)×30 + Day) at
+	/// which the current motivation buff expires. 0 = no active buff.
+	/// Granted by reading a non-quest fan letter (70% of letters).
+	public int             MotivationActiveUntilDay { get; set; }
+
+	/// Number of buff days queued to start when the active buff ends.
+	/// Reading a non-quest letter while already motivated adds days
+	/// here instead of stacking on top of the current period.
+	public int             MotivationQueuedDays     { get; set; }
+
+	/// Press-release letters scheduled to land in the inbox a couple
+	/// in-game weeks after a ship that fulfilled 2+ quests at once.
+	/// Persisted so a save/load roundtrip mid-window doesn't drop
+	/// pending press beats.
+	public List<PressLetterPending> PendingPress { get; set; } = new();
+
+	/// Unordered genre pairs the player has already shipped at least once
+	/// (and received a discovery letter for, if positive synergy). Stored
+	/// as "GenreA|GenreB" with the alphabetically-earlier enum name first
+	/// so the key is canonical. Used by the synergy-hint system to keep
+	/// each pair's "first time" letter a one-shot per run.
+	public List<string>             DiscoveredPairs { get; set; } = new();
+}
+
+/// <summary>
+/// Queued press-release letter, waiting on its target in-game day.
+/// Spawned by <see cref="Letterbox.Tick"/> once
+/// <see cref="TargetDayAbs"/> is reached.
+/// </summary>
+public sealed class PressLetterPending
+{
+	public string       GameTitle    { get; set; } = "";
+	public int          QuestCount   { get; set; }
+	public int          TargetDayAbs { get; set; }
+}
+
+/// <summary>
+/// One fan letter. Generated from a templated copy pool keyed off the
+/// referenced game's review score. Quest letters carry a non-null
+/// <see cref="QuestGenre"/> the player must ship next to fulfill.
+/// </summary>
+public sealed class FanLetter
+{
+	public string         Id              { get; set; } = "";
+	public string         GameTitle       { get; set; } = "";
+	public GameGenre      GameGenre       { get; set; }
+	public int            ReviewScore     { get; set; }
+	public string         SenderName      { get; set; } = "";
+	public string         Body            { get; set; } = "";
+	public DateTimeOffset ReceivedAt      { get; set; }
+	public bool           IsQuest         { get; set; }
+	public GameGenre?     QuestGenre      { get; set; }
+	public bool           QuestFulfilled  { get; set; }
+	public string         FulfilledByGame { get; set; } = "";
+	public bool           Read            { get; set; }
+
+	/// True for "synergy noticed" hint letters spawned the first time a
+	/// player ships a positive-synergy genre pair. Two extra genre fields
+	/// (<see cref="SynergyA"/> / <see cref="SynergyB"/>) carry which pair
+	/// triggered the letter so the reader can bold them inline.
+	/// Discovery letters never grant the motivation buff on read — they're
+	/// pure hints, no gameplay effect.
+	public bool           IsDiscovery     { get; set; }
+	public GameGenre?     SynergyA        { get; set; }
+	public GameGenre?     SynergyB        { get; set; }
 }
 
 // ── Cross-run files (each lives in its own FileSystem.Data file) ───────

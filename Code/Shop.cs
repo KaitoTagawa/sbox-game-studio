@@ -21,14 +21,20 @@ public sealed class Shop : Component
 
 	public bool IsOpen { get; private set; }
 
+	/// Tag for the sticky "consumables unlocked at 3 games" toast.
+	/// ShopPanel clears it the moment the player clicks the Consumable tab.
+	public const string ConsumablesUnlockedToastTag = "consumables-unlocked";
+
 	protected override void OnAwake()
 	{
 		Instance = this;
+		Gallery.OnGameShipped += OnGameShipped;
 	}
 
 	protected override void OnDestroy()
 	{
 		if ( Instance == this ) Instance = null;
+		Gallery.OnGameShipped -= OnGameShipped;
 	}
 
 	protected override void OnUpdate()
@@ -42,7 +48,26 @@ public sealed class Shop : Component
 	public void SetOpen( bool open )
 	{
 		IsOpen = open;
-		if ( open ) GameMenu.Instance?.SetOpen( false );
+		if ( open ) Modals.CloseAllExcept( this );
 		GameManager.RefreshPlayerLock();
+	}
+
+	/// Fired by Gallery the moment a project publishes. The 3rd ship is the
+	/// "all consumables unlocked" milestone (matches the GamesShipped >= 3
+	/// gate in InventoryCatalogue.IsUnlocked) — push a sticky toast that
+	/// only goes away when the player visits the Consumable tab in the
+	/// Shop. Subsequent ships don't re-arm the toast: ship #3 is a one-time
+	/// reveal, not a recurring nag.
+	void OnGameShipped()
+	{
+		if ( Achievements.GamesShipped != 3 ) return;
+		if ( Notifications.HasTag( ConsumablesUnlockedToastTag ) ) return;
+
+		Notifications.Push(
+			"Consumables unlocked!",
+			"Open the Shop and check the Consumable tab — three new items are available.",
+			"success",
+			duration: 0f,                            // sticky — see ShopPanel.SetTab
+			tag: ConsumablesUnlockedToastTag );
 	}
 }

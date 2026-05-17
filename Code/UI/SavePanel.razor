@@ -1,0 +1,211 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+@* Fullscreen Save / Load modal (ADR-0003 Phase 1). Three slot cards:
+   slot-1 is the autosave (LOAD-only), slot-2 + slot-3 are free manual
+   slots. "Start New Game" sits below the cards with a two-step
+   takeover confirm overlay. Markup ported verbatim from the inline
+   GameMenuPanel save section so visual rhythm is preserved. *@
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop" onclick=@Close></div>
+	<div class="window">
+		<div class="header">
+			<div class="title">SAVE / LOAD</div>
+			<div class="close-btn" onclick=@Close>×</div>
+		</div>
+
+		<div class="body">
+			<div class="save-slots">
+				@for ( int i = 0; i < SlotIds.Length; i++ )
+				{
+					var idx        = i;
+					var slotId     = SlotIds[idx];
+					var peek       = SlotPeek( slotId );
+					var hasSave    = peek is not null;
+					var isAutosave = slotId == GameSaveManager.AutosaveSlotId;
+					<div class="save-slot @(hasSave ? "" : "empty") @(isAutosave ? "autosave" : "")">
+						<div class="save-slot-head">
+							<div class="save-slot-name">
+								SLOT @(idx + 1)@(isAutosave ? " (AUTO-SAVE)" : "")
+							</div>
+							@if ( hasSave )
+							{
+								<div class="save-slot-date">@SlotDateLabel( peek )</div>
+							}
+						</div>
+						<div class="save-slot-body">
+							@if ( hasSave )
+							{
+								<div class="save-slot-row">
+									<div class="save-slot-key">Day</div>
+									<div class="save-slot-val">@peek.Calendar.Day / @peek.Calendar.Month / @peek.Calendar.Year</div>
+								</div>
+								<div class="save-slot-row">
+									<div class="save-slot-key">Money</div>
+									<div class="save-slot-val">$@peek.Economy.Money.ToString("N0")</div>
+								</div>
+							}
+							else
+							{
+								<div class="save-slot-empty">Empty</div>
+							}
+						</div>
+						<div class="save-slot-foot">
+							@if ( !isAutosave )
+							{
+								<div class="btn save-btn" onclick=@(() => SaveSlot( slotId ))>
+									<div class="save-btn-label">SAVE</div>
+								</div>
+							}
+							<div class="btn load-btn @(hasSave ? "" : "disabled")"
+							     onclick=@(() => { if ( hasSave ) LoadSlot( slotId ); })>
+								<div class="save-btn-label">LOAD</div>
+							</div>
+						</div>
+					</div>
+				}
+			</div>
+
+			<div class="save-hint">
+				Slot 1 auto-saves at the end of every in-game day and when a
+				project ships. Slots 2 and 3 are yours to write manually.
+			</div>
+
+			@* Red button below the slots opens a top-level takeover modal —
+			   see the overlay block below. The button itself stays inline. *@
+			<div class="new-game-btn" onclick=@StartConfirmNewGame>
+				<div class="new-game-btn-label">START NEW GAME</div>
+			</div>
+		</div>
+	</div>
+
+	@* TAKEOVER MODAL — sits above the SavePanel window with a higher
+	   z-index so the start-new-game confirmation can't be missed. Yes /
+	   No only; backdrop click counts as cancel (matches "no" intent). *@
+	@if ( _confirmingNewGame )
+	{
+		<div class="restart-takeover-backdrop" onclick=@CancelNewGame></div>
+		<div class="restart-takeover">
+			<div class="restart-takeover-title">Are you sure?</div>
+			<div class="restart-takeover-text">Start a new game?</div>
+			<div class="restart-takeover-row">
+				<div class="btn restart-takeover-no" onclick=@CancelNewGame>
+					<div class="restart-takeover-label">NO</div>
+				</div>
+				<div class="btn restart-takeover-yes" onclick=@ConfirmNewGame>
+					<div class="restart-takeover-label">YES</div>
+				</div>
+			</div>
+		</div>
+	}
+</root>
+
+@code {
+	// ── State ────────────────────────────────────────────────────────────────
+
+	private bool IsOpen => SaveMenu.Instance?.IsOpen ?? false;
+
+	private void Close()
+	{
+		// Closing also drops any in-flight new-game confirmation so reopening
+		// the panel lands on the non-confirming state.
+		_confirmingNewGame = false;
+		SaveMenu.Instance?.SetOpen( false );
+	}
+
+	private string[] SlotIds => GameSaveManager.ManualSlotIds;
+
+	// Per-slot peek cache. Filled on first access, invalidated on save
+	// + on close. Autosave slot bypasses the cache (see SlotPeek below).
+	private readonly Dictionary<string, GameSave> _slotPeeks = new();
+
+	private GameSave SlotPeek( string slotId )
+	{
+		var sm = GameSaveManager.Instance;
+		if ( sm is null ) return null;
+
+		// Autosave slot bypasses the cache: autosaves fire outside the UI
+		// (day tick, project ship, scene exit), so a cached peek would go
+		// stale the moment the player keeps playing with the menu closed.
+		// Re-reading a small JSON each render is cheap and keeps the slot 1
+		// card honest.
+		if ( slotId == GameSaveManager.AutosaveSlotId )
+			return sm.PeekRun( slotId );
+
+		if ( _slotPeeks.TryGetValue( slotId, out var peek ) ) return peek;
+		peek = sm.PeekRun( slotId );
+		_slotPeeks[slotId] = peek;
+		return peek;
+	}
+
+	private static string SlotDateLabel( GameSave peek )
+		=> peek?.SavedAt.LocalDateTime.ToString( "MMM d, HH:mm" ) ?? "—";
+
+	// ── Slot actions ─────────────────────────────────────────────────────────
+
+	private void SaveSlot( string slotId )
+	{
+		var sm = GameSaveManager.Instance;
+		if ( sm is null ) return;
+		_slotPeeks.Remove( slotId );   // next render re-reads the file
+		if ( sm.TrySaveRun( slotId, out var err ) )
+			Notifications.Push( "Saved", $"Wrote to {SlotLabel( slotId )}.", "success" );
+		else
+			Notifications.Push( "Save failed", err ?? "unknown error", "warning" );
+	}
+
+	private void LoadSlot( string slotId )
+	{
+		var sm = GameSaveManager.Instance;
+		if ( sm is null ) return;
+		if ( sm.TryLoadRun( slotId, out var err ) )
+			Notifications.Push( "Loaded", $"Restored {SlotLabel( slotId )}.", "success" );
+		else
+			Notifications.Push( "Load failed", err ?? "unknown error", "warning" );
+	}
+
+	// "Start New Game" two-step confirmation. Toggle drives the markup
+	// branch above; reset on close so reopening the menu lands on the
+	// non-confirming state.
+	private bool _confirmingNewGame;
+
+	private void StartConfirmNewGame() { _confirmingNewGame = true; }
+	private void CancelNewGame()       { _confirmingNewGame = false; }
+
+	private void ConfirmNewGame()
+	{
+		_confirmingNewGame = false;
+		_slotPeeks.Clear();   // peek cache invalid after a wipe
+		GameSaveManager.Instance?.RestartRun();
+	}
+
+	private static string SlotLabel( string slotId )
+	{
+		// "slot-1" → "Slot 1"
+		if ( slotId is null ) return "?";
+		var ids = GameSaveManager.ManualSlotIds;
+		for ( int i = 0; i < ids.Length; i++ )
+			if ( ids[i] == slotId ) return $"Slot {i + 1}";
+		return slotId;
+	}
+
+	// ── Re-render trigger ────────────────────────────────────────────────────
+
+	protected override int BuildHash()
+	{
+		// Hash on open-state + the autosave's "last saved at" so the slot 1
+		// card refreshes whenever the autosave path writes (day tick / ship /
+		// exit). Manual-slot peeks are cached, so they only change on
+		// SaveSlot — which already invalidates the cache and triggers a
+		// re-render via this hash flipping on _slotPeeks.Count.
+		var sm  = GameSaveManager.Instance;
+		var auto = sm?.PeekRun( GameSaveManager.AutosaveSlotId );
+		return System.HashCode.Combine(
+			IsOpen,
+			_confirmingNewGame,
+			_slotPeeks.Count,
+			auto?.SavedAt );
+	}
+}

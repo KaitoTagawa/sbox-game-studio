@@ -58,10 +58,6 @@
         },
         "Age": 0,
         "AppearanceSeed": 0,
-        "BadMoodFx": {
-          "_type": "gameobject",
-          "go": "6a72e839-a31c-489e-ac00-91caaccbcdda"
-        },
         "CurrentTask": "",
         "DaysIntoCurrentResearch": 0,
         "DeskSlotId": null,

@@ -133,5 +133,11 @@ public static class Notifications
 			ShownAt  = RealTime.Now,
 			Duration = duration,
 		} );
+
+		// Audio cue — warning toasts get the red-notification chime.
+		// "danger" kept as a future-proof alias even though the codebase
+		// only uses "warning" today.
+		if ( kind == "warning" || kind == "danger" )
+			SFX.PlayWarning();
 	}
 }

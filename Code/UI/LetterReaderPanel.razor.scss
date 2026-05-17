@@ -1,0 +1,200 @@
+// Letter reader sub-modal — formatted as an actual letter:
+// "Dear …," opening on the left, body paragraph below, "From," and
+// signature offset to the right at the bottom. Sits ABOVE
+// LetterboxPanel (z-index 200 vs 100) so it overlays the inbox list
+// without closing it.
+
+LetterReaderPanel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	font-family: Poppins;
+	z-index: 200;
+}
+
+LetterReaderPanel.open   { pointer-events: all; }
+LetterReaderPanel.closed .backdrop,
+LetterReaderPanel.closed .window { display: none; }
+
+.backdrop {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba( 0, 0, 0, 0.65 );
+}
+
+// 520px wide — narrower than the previous 640px window so the card
+// reads as a personal letter, not a documentation pop-up. Side
+// padding 48px gives ~10% breathing room on a 424px content area.
+// Title row removed per user request — letter opens straight at
+// "Dear S&Box Game Studio,".
+.window {
+	position: absolute;
+	left:   50%;
+	top:    50%;
+	transform: translate( -50%, -50% );
+	width:  520px;
+	flex-direction: column;
+	align-items: stretch;
+	background-color: rgba( 18, 24, 30, 0.96 );
+	border: 2px solid rgba( 200, 130, 230, 0.55 );
+	border-radius: 14px;
+	box-shadow: 0px 10px 40px 0px rgba( 0, 0, 0, 0.6 );
+	padding: 30px 48px 26px 48px;
+	overflow: hidden;
+}
+
+.body {
+	flex-direction: column;
+	align-items: stretch;
+	margin-bottom: 22px;
+}
+
+// Generic supporting-line styling. Every visible body row is one
+// nowrap chunk (yoga's wrapped-text bug — see project memory).
+.line {
+	color: rgba( 255, 255, 255, 0.85 );
+	font-size: 14px;
+	font-weight: 500;
+	letter-spacing: 0.2px;
+	margin-bottom: 6px;
+	white-space: nowrap;
+}
+
+// "Dear …," — slightly heavier than the body lines to anchor the
+// letter visually. Left-aligned (real-letter convention).
+.line.opening {
+	color: rgba( 255, 255, 255, 0.95 );
+	font-size: 15px;
+	font-weight: 600;
+	margin-bottom: 14px;
+	text-align: left;
+}
+
+// Body lines — wrapped in C#; each row is its own nowrap chunk.
+// Left-aligned to read like prose. Tight margin-bottom so the
+// chunks read as a single paragraph rather than a list.
+.line.body-line {
+	color: rgba( 255, 255, 255, 0.88 );
+	font-size: 14px;
+	font-weight: 400;
+	margin-bottom: 4px;
+	text-align: left;
+}
+
+// Game title within the letter body — bold + brighter so the eye
+// lands on it. Horizontal padding gives the bold text visual
+// breathing room even when s&box's flex inline renderer collapses
+// the text-node spaces around it (which the user reported).
+.line.body-line .game-title {
+	color: rgb( 255, 255, 255 );
+	font-weight: 800;
+	padding: 0 4px;
+}
+
+// "From," — tucked in just above the signature. Right-aligned for
+// the classic offset-letter look.
+.line.closing {
+	color: rgba( 255, 255, 255, 0.7 );
+	font-size: 14px;
+	font-style: italic;
+	margin-top: 16px;
+	margin-bottom: 4px;
+	text-align: right;
+}
+
+// Signature — bigger and right-aligned to match the closing line.
+.line.signature {
+	color: rgb( 220, 180, 240 );
+	font-size: 17px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	margin-bottom: 0;
+	text-align: right;
+}
+
+// Effect callout — sits between the body and the sign-off so the
+// player sees, in-letter, what reading just did to game state.
+// Two variants: quest (gold/bronze, matches the REQUEST tone) and
+// motivation (purple, echoes the panel border + signature).
+// Each line is its own nowrap row to dodge the yoga wrapped-text
+// bug (project memory: sbox_wrapped_text_layout_quirk).
+.effect-card {
+	align-self: center;
+	flex-direction: column;
+	align-items: center;
+	border-radius: 10px;
+	padding: 10px 24px;
+	margin: 14px 0 6px 0;
+}
+
+.effect-card.quest {
+	background-color: rgba( 230, 200, 110, 0.18 );
+	border: 1px solid rgba( 230, 200, 110, 0.7 );
+}
+
+.effect-card.motivation {
+	background-color: rgba( 200, 130, 230, 0.18 );
+	border: 1px solid rgba( 200, 130, 230, 0.7 );
+}
+
+.effect-card.discovery {
+	background-color: rgba( 110, 220, 200, 0.18 );
+	border: 1px solid rgba( 110, 220, 200, 0.7 );
+}
+
+.effect-line {
+	white-space: nowrap;
+	text-align: center;
+}
+
+.effect-line.title {
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 2px;
+	margin-bottom: 5px;
+}
+
+.effect-card.quest .effect-line.title      { color: rgb( 240, 215, 130 ); }
+.effect-card.motivation .effect-line.title { color: rgb( 220, 180, 240 ); }
+.effect-card.discovery .effect-line.title  { color: rgb( 140, 230, 210 ); }
+
+.effect-line.detail {
+	font-size: 14px;
+	font-weight: 700;
+	color: rgba( 255, 255, 255, 0.95 );
+	margin-bottom: 2px;
+}
+
+.effect-line.bonus {
+	font-size: 12px;
+	font-weight: 500;
+	color: rgba( 255, 255, 255, 0.6 );
+}
+
+// ── Footer / Done button ─────────────────────────────────────────────
+
+.footer {
+	flex-direction: row;
+	justify-content: center;
+}
+
+.btn {
+	color: white;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+	padding: 10px 32px;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.btn.begin {
+	background-color: rgba( 200, 130, 230, 0.6 );
+	border: 1px solid rgb( 200, 130, 230 );
+}
+
+.btn.begin:hover {
+	background-color: rgb( 200, 130, 230 );
+}

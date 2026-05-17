@@ -213,10 +213,13 @@ public sealed class EmployeeStats
 	public static EmployeeStats Generate( Random rng, int tier, int primaryStatIndex,
 	                                       float jobQuality = 0f, float progressionFactor = 0f )
 	{
-		// Tier base ranges retuned 2026-05-02 so per-posting expected
-		// overall stat lands near: Bulletin 200, Career 400, Headhunter 800.
-		// Junior is intentionally weak (overall ~108 at q=0); senior is the
-		// "ringer" tier with primary near the cap.
+		// Tier base ranges retuned 2026-05-02 (Bulletin 200 / Career 400 /
+		// Headhunter 800), then senior secondary lifted twice 2026-05-08 —
+		// first (600, 950) → (700, 1000) for reachability, then → (750, 1000)
+		// so a Year 2026 Headhunter applicant has ~30 % chance of OVR ≥ 900.
+		// Hi is hard-capped at 1000 by ApplicantClamp; raising lo is the only
+		// way to push elite-tier mean upward. Junior is intentionally weak
+		// (overall ~108 at q=0); senior is the "ringer" tier.
 		(int lo, int hi) primaryBase = tier switch
 		{
 			0 => (50,  250),    // junior:  primary avg 150
@@ -228,7 +231,7 @@ public sealed class EmployeeStats
 		{
 			0 => (40,  160),    // junior:  secondary avg 100
 			1 => (180, 460),    // mid:     secondary avg 320
-			2 => (600, 950),    // senior:  secondary avg 775
+			2 => (750, 1000),   // senior:  secondary avg 875 — elite-tier knob; do not drop below 720 without recalc
 			_ => (40,  160),
 		};
 

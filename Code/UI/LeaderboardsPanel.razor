@@ -1,0 +1,177 @@
+@using System.Collections.Generic
+@using System.Threading.Tasks
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+@* Four-board leaderboard modal (ADR-0002). Each tab fetches its own
+   stat from Sandbox.Services.Leaderboards on first selection; results
+   are cached per-tab for the lifetime of the open modal so re-clicking
+   tabs is instant. Hit "Refresh" to re-pull. *@
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop" onclick=@Close></div>
+	<div class="window">
+		<div class="header">
+			<div class="title">LEADERBOARDS</div>
+			<div class="header-refresh @(IsLoading ? "disabled" : "")"
+			     onclick=@(() => { if ( !IsLoading ) RefreshActive(); })>↻ Refresh</div>
+			<div class="close-btn" onclick=@Close>×</div>
+		</div>
+
+		<div class="cat-tabs">
+			@for ( int i = 0; i < Defs.Length; i++ )
+			{
+				var idx   = i;
+				var def   = Defs[idx];
+				var label = def.Title;
+				<div class="cat-tab @(ActiveTab == idx ? "active" : "")"
+				     onclick=@(() => SetTab( idx ))>
+					<div class="cat-tab-icon">@def.Icon</div>
+					<div class="cat-tab-name">@label</div>
+					<div class="cat-tab-meta">@def.Description</div>
+				</div>
+			}
+		</div>
+
+		<div class="body">
+			@{ EnsureFetchedIfOpen(); }
+			@if ( IsLoading )
+			{
+				<div class="state-msg">Loading leaderboard…</div>
+			}
+			else if ( ActiveRows is null )
+			{
+				<div class="state-msg state-empty">
+					Leaderboards unavailable. This usually means you're in the
+					editor or running an unpublished build — submissions only
+					flow from a published <code>@Leaderboards.GameIdent</code>
+					build with a signed-in player.
+				</div>
+			}
+			else if ( ActiveRows.Count == 0 )
+			{
+				<div class="state-msg state-empty">
+					No entries yet. Be the first studio to ship a game in the
+					published build!
+				</div>
+			}
+			else
+			{
+				<div class="table-head">
+					<div class="col-rank">#</div>
+					<div class="col-name">Studio</div>
+					<div class="col-value">@ActiveDef.Title</div>
+				</div>
+				@foreach ( var r in ActiveRows )
+				{
+					var row = r;
+					<div class="entry">
+						<div class="col-rank">@row.Rank</div>
+						<div class="col-name">@row.DisplayName</div>
+						<div class="col-value">@FormatValue( row.Value, ActiveDef.IsCurrency )</div>
+					</div>
+				}
+			}
+		</div>
+
+		<div class="footer">
+			For-fun board. Scores submitted from the client; not moderated.
+		</div>
+	</div>
+</root>
+
+@code {
+	private bool IsOpen => Leaderboards.Instance?.IsOpen ?? false;
+
+	private LeaderboardDef[] Defs => Leaderboards.All;
+
+	private int ActiveTab { get; set; } = 0;
+	private LeaderboardDef ActiveDef => Defs[ActiveTab];
+
+	// Per-tab cache so re-selecting a tab doesn't refire the platform
+	// call. Lives for the panel-component's lifetime; the Refresh button
+	// is the player's tool for re-pulling fresh data.
+	private readonly Dictionary<int, List<LeaderboardRow>> _cache  = new();
+	private readonly HashSet<int>                          _loading = new();
+
+	private bool IsLoading => _loading.Contains( ActiveTab );
+	private List<LeaderboardRow> ActiveRows
+		=> _cache.TryGetValue( ActiveTab, out var rows ) ? rows : null;
+
+	/// Lazy-fetch hook called from the body render path. Kicks the
+	/// platform call the first time the modal is open and the tab has
+	/// no cache. Side-effect inside the render loop is unusual but it's
+	/// the simplest way to defer the fetch to "modal actually opened" —
+	/// avoids the OnStart-fetches-at-boot pattern, which is unusual for
+	/// this project's PanelComponents.
+	private void EnsureFetchedIfOpen()
+	{
+		if ( !IsOpen ) return;
+		EnsureTabFetched( ActiveTab );
+	}
+
+	private void Close() => Leaderboards.Instance?.SetOpen( false );
+
+	private void SetTab( int idx )
+	{
+		if ( idx < 0 || idx >= Defs.Length ) return;
+		ActiveTab = idx;
+		EnsureTabFetched( idx );
+	}
+
+	/// Force a re-fetch of the active tab (drops its cached rows first).
+	private void RefreshActive()
+	{
+		_cache.Remove( ActiveTab );
+		EnsureTabFetched( ActiveTab );
+	}
+
+	/// Fire the async fetch for <paramref name="idx"/> if it isn't cached
+	/// and isn't already in flight. Fire-and-forget — when the task
+	/// completes the cache fills and BuildHash flips on the next render
+	/// tick.
+	private void EnsureTabFetched( int idx )
+	{
+		if ( _cache.ContainsKey( idx ) )    return;
+		if ( !_loading.Add( idx ) )         return;   // already in flight
+
+		_ = FetchTabAsync( idx );
+	}
+
+	private async Task FetchTabAsync( int idx )
+	{
+		try
+		{
+			var def = Defs[idx];
+			var rows = await Leaderboards.FetchAsync( def.StatName, max: 50 );
+			_cache[idx] = rows;   // null is a valid cached value (= "unavailable")
+		}
+		finally
+		{
+			_loading.Remove( idx );
+		}
+	}
+
+	/// Format a leaderboard cell. Currency stats render with `$` and
+	/// thousand-separators; score-style stats render as integers.
+	private static string FormatValue( double value, bool isCurrency )
+	{
+		long v = (long)value;
+		return isCurrency ? $"${v:N0}" : v.ToString( "N0" );
+	}
+
+	protected override int BuildHash()
+	{
+		// Re-render whenever the open-state, tab, loading-set, or cached
+		// row counts change. Tab cache content (specific values) is
+		// stable once fetched, so we only need to flip on count.
+		int rowCount = ActiveRows?.Count ?? -1;
+		return System.HashCode.Combine(
+			IsOpen,
+			ActiveTab,
+			_loading.Count,
+			_cache.Count,
+			rowCount );
+	}
+}

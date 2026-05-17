@@ -485,5 +485,26 @@ private static string ReturnLabel( TrainingSession s )
 		Money,
 		Energy,
 		AllOffers.Count,
-		AllWorkers.Count + StaffOverallSum + (int)TrainingStateProxy );
+		AllWorkers.Count + StaffOverallSum + (int)TrainingStateProxy,
+		// Research inbox content hash — see ResearchInboxHash. Without
+		// this, OnMonthStart adding a new topic fires the "New research
+		// available!" notification but the panel doesn't re-render and
+		// the new card doesn't appear.
+		ResearchInboxHash );
+
+	/// Content-aware hash of the research inbox. Combines the count AND
+	/// every id, so any inbox mutation (add / remove / swap) flips the
+	/// hash even when count stays constant.
+	private int ResearchInboxHash
+	{
+		get
+		{
+			var inbox = TrainingManager.Instance?.ResearchInbox;
+			if ( inbox is null ) return 0;
+			int h = inbox.Count;
+			foreach ( var id in inbox )
+				h = System.HashCode.Combine( h, id );
+			return h;
+		}
+	}
 }

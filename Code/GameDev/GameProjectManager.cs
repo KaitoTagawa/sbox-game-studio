@@ -217,17 +217,12 @@ public sealed class GameProjectManager : Component
 		if ( open )
 		{
 			// Close every competing modal so Publish always lands on top.
-			// Both base modals (z 100) and sub-modals (z 200) are dropped —
-			// CreateGamePanel sits at z 400, but in s&box's panel-tree
-			// rendering the underlying components can still capture input
-			// and compete visually depending on scene ordering. Forcing
-			// them shut keeps the publish flow unambiguous.
-			GameMenu.Instance?.SetOpen( false );
-			Shop.Instance?.SetOpen( false );
-			Settings.Instance?.SetOpen( false );
-			Gallery.Instance?.SetOpen( false );
-			Workstations.Instance?.SetOpen( false );
-			TrainingManager.Instance?.SetOpen( false );
+			Modals.CloseAllExcept( this );
+
+			// Non-modal subjects (interview / desk-assign / staff-view) live
+			// outside the Modals helper because they don't have a SetOpen —
+			// dismiss them explicitly so panels bound to them don't render
+			// over the publish flow.
 			InventoryManager.Instance?.CancelAssign();
 			HRManager.Instance?.CloseWorkerView();
 		}
@@ -279,10 +274,12 @@ public sealed class GameProjectManager : Component
 				// sacrificing a pillar) — but greenlighting an entirely empty
 				// project would just stall the production phase.
 				1 => HasAnyAssignment,
-				// Page 3 → production: at least one pillar must get some time
-				// allocated. Going over the 10-minute cap is allowed but
-				// surfaced as a "crunch" warning in the UI.
-				2 => HasAnyTimeAllocated,
+				// Page 3 → production: the player must spend the FULL effort
+				// budget (sum ≈ TotalEffortBudget). Partial allocations are
+				// blocked — a too-weak team (budget = 0) also can't advance.
+				// EnforceEffortCaps already prevents going over budget; this
+				// gate just refuses to advance while there's headroom unspent.
+				2 => IsEffortBudgetFullySpent,
 				_ => false,
 			};
 		}
@@ -299,11 +296,21 @@ public sealed class GameProjectManager : Component
 		}
 	}
 
-	bool HasAnyTimeAllocated =>
-		Current is not null
-		&& ( Current.DesignTime > 0f
-		     || Current.SoundTime > 0f
-		     || Current.GraphicsTime > 0f );
+	/// True iff the player has allocated the entire effort budget across the
+	/// three pillar sliders. Uses a small epsilon (0.001) to tolerate
+	/// floating-point drift from the bump increments / EnforceEffortCaps
+	/// rescaling. Requires <see cref="TotalEffortBudget"/> &gt; 0 too so a
+	/// zero-budget team (too weak to ship anything) can't auto-pass.
+	bool IsEffortBudgetFullySpent
+	{
+		get
+		{
+			if ( Current is null ) return false;
+			float budget = TotalEffortBudget;
+			if ( budget <= 0f ) return false;
+			return TotalEffortSpent >= budget - 0.001f;
+		}
+	}
 
 	public void NextPage()
 	{
@@ -405,15 +412,6 @@ public sealed class GameProjectManager : Component
 	public float DesignTeamStrength   => PillarContribution( GameDevRole.GameDirector,  static w => w.Stats.Design.Average  );
 	public float SoundTeamStrength    => PillarContribution( GameDevRole.SoundDirector, static w => w.Stats.Sound.Average   );
 	public float GraphicsTeamStrength => PillarContribution( GameDevRole.ArtDirector,   static w => w.Stats.Artistry.Average );
-
-	/// "Lost" team strength — the contribution that's missing this tick
-	/// because one or more NPCs are in <see cref="EmployeeMood.Bad"/>.
-	/// Used by the production tick to accumulate
-	/// <see cref="GameProject.DesignPenaltyPoints"/> etc., so time spent
-	/// at half strength stays as a score tax even after mood heals.
-	public float DesignLostStrength   => PillarLostContribution( GameDevRole.GameDirector,  static w => w.Stats.Design.Average  );
-	public float SoundLostStrength    => PillarLostContribution( GameDevRole.SoundDirector, static w => w.Stats.Sound.Average   );
-	public float GraphicsLostStrength => PillarLostContribution( GameDevRole.ArtDirector,   static w => w.Stats.Artistry.Average );
 
 	/// Sum of the three pillar contributions, scaled by studio infrastructure
 	/// upgrades. Drives <see cref="TotalEffortBudget"/>.
@@ -535,21 +533,18 @@ public sealed class GameProjectManager : Component
 
 		Current.Phase = GameProjectPhase.Production;
 
-		// Fresh project → reset the per-production mood-toast gates so the
-		// player gets a "first frustrated" / "first idea" notification this
-		// run regardless of what fired in the previous one.
-		Current.BadMoodToastShown  = false;
+		// Fresh project → reset the per-production Idea-toast gate so the
+		// player gets a "first idea" notification this run regardless of
+		// what fired in the previous one.
 		Current.GoodMoodToastShown = false;
 
 		// Second-game tutorial nudge: on the project IMMEDIATELY AFTER the
-		// tutorial-completing first ship, force one Good and one Bad mood
-		// event during this production so the player discovers the mood /
-		// chat mechanic. GamesShipped == 1 means exactly the 2nd game is
+		// tutorial-completing first ship, force one Good-mood event during
+		// this production so the player discovers the suggestion / chat
+		// mechanic. GamesShipped == 1 means exactly the 2nd game is
 		// starting now (1 already shipped). After the 2nd game the moods
 		// fall back to the regular probabilistic rolls.
-		bool isSecondGame = Achievements.GamesShipped == 1;
-		Current.GuaranteeGoodMoodPending = isSecondGame;
-		Current.GuaranteeBadMoodPending  = isSecondGame;
+		Current.GuaranteeGoodMoodPending = Achievements.GamesShipped == 1;
 
 		Notifications.Push( "Production Started",
 			$"\"{Current.Title}\" has entered development.", "info" );
@@ -644,7 +639,18 @@ public sealed class GameProjectManager : Component
 	/// XP is *free* — there's no money/energy cost — so the cheaper rate
 	/// here is intentional. Bump if shipping should feel like "free Basic
 	/// training" again.
-	const int ProjectXpPerRole = 5;
+	const int ProjectXpPerRole = 3;
+
+	/// Stats eligible for project-completion XP. Mirrors the training
+	/// pool — both restricted to the production pillars (Design / Sound /
+	/// Artistry) until Programming / Creativity / Focus get gameplay
+	/// hooks (gamedev.md G14 Producer Boost + parked progression rework).
+	static readonly MainStat[] ProductionStats =
+	{
+		MainStat.Design,
+		MainStat.Sound,
+		MainStat.Artistry,
+	};
 
 	/// Walk the project's role assignments and apply a +<see cref="ProjectXpPerRole"/>
 	/// boost to each worker's role-corresponding main stat. Pushes a single
@@ -655,21 +661,35 @@ public sealed class GameProjectManager : Component
 		if ( project is null ) return;
 
 		// Aggregate per-worker so a worker in multiple roles gets one
-		// "Alice: +5 Design, +5 Focus" line instead of two toasts.
+		// "Alice: +3 Design, +3 Sound" line instead of two toasts.
 		var perWorker = new Dictionary<IDevWorker, List<(MainStat stat, int amount)>>();
+
+		// Single Random covers any random-stat picks below — avoids the
+		// per-iteration seed-collision that bit Letterbox earlier.
+		var rng = new Random();
 
 		foreach ( var kvp in project.Assignments )
 		{
-			var role = kvp.Key;
-			var stat = StatForRole( role );
-			if ( stat is null ) continue;          // role with no XP mapping
+			var role    = kvp.Key;
+			var natural = StatForRole( role );
+			if ( natural is null ) continue;       // role with no XP mapping
+
+			// XP is restricted to the three production stats. If the
+			// role's natural mapping is one of them (GameDirector → Design,
+			// SoundDirector → Sound, ArtDirector → Artistry) award that.
+			// Otherwise (PM → Focus, Producer → Creativity), redirect to
+			// a random production stat so the worker still gets +3 from
+			// their assignment.
+			MainStat awarded = IsProductionStat( natural.Value )
+				? natural.Value
+				: ProductionStats[rng.Next( ProductionStats.Length )];
 
 			foreach ( var worker in kvp.Value )
 			{
 				if ( worker?.Stats is null ) continue;
 				if ( !perWorker.ContainsKey( worker ) )
 					perWorker[worker] = new List<(MainStat, int)>();
-				perWorker[worker].Add( (stat.Value, ProjectXpPerRole) );
+				perWorker[worker].Add( (awarded, ProjectXpPerRole) );
 			}
 		}
 
@@ -707,6 +727,17 @@ public sealed class GameProjectManager : Component
 		_                          => null,
 	};
 
+	/// True if <paramref name="stat"/> is one of the production-pillar stats
+	/// (Design / Sound / Artistry). Used by <see cref="AwardProjectExperience"/>
+	/// to gate XP allocation — non-production stats redirect to a random
+	/// production stat so PM / Producer assignments still get +3 of value.
+	static bool IsProductionStat( MainStat stat )
+	{
+		for ( int i = 0; i < ProductionStats.Length; i++ )
+			if ( ProductionStats[i] == stat ) return true;
+		return false;
+	}
+
 	/// Skip the production timer and fast-complete the in-flight project.
 	/// Used by the tutorial's Start Up Training step so the player doesn't
 	/// have to sit through a real-time wait on their very first game.
@@ -728,26 +759,25 @@ public sealed class GameProjectManager : Component
 		float synergy     = Math.Clamp( 1f + Current.Synergy * SynergyScalar, MinSynergy, MaxSynergy );
 		float quality     = (1f + pmBoost) * (1f + hackerBoost) * synergy;
 
-		void Snap( float effort, float teamStrength, Action<float> setProgress, Action<int> setPoints, int bonus, int penalty )
+		void Snap( float effort, float teamStrength, Action<float> setProgress, Action<int> setPoints, int bonus )
 		{
 			if ( effort <= 0f )
 			{
 				// Sacrificed pillars: pre-completed at progress=1, points=0.
-				// Bonus and penalty applied for consistency with the
-				// production-tick math, even though sacrificed pillars
-				// rarely accumulate either in practice.
+				// Bonus applied for consistency with the production-tick
+				// math, even though sacrificed pillars rarely accumulate it.
 				setProgress( 1f );
-				setPoints( System.Math.Max( 0, bonus - penalty ) );
+				setPoints( System.Math.Max( 0, bonus ) );
 				return;
 			}
 			float target = effort * teamStrength * quality;
 			setProgress( 1f );
-			setPoints( System.Math.Max( 0, (int)MathF.Round( target ) + bonus - penalty ) );
+			setPoints( System.Math.Max( 0, (int)MathF.Round( target ) + bonus ) );
 		}
 
-		Snap( Current.DesignTime,   DesignTeamStrength,   p => Current.DesignProgress   = p, pts => Current.DesignPoints   = pts, Current.DesignBonusPoints,   Current.DesignPenaltyPoints   );
-		Snap( Current.SoundTime,    SoundTeamStrength,    p => Current.SoundProgress    = p, pts => Current.SoundPoints    = pts, Current.SoundBonusPoints,    Current.SoundPenaltyPoints    );
-		Snap( Current.GraphicsTime, GraphicsTeamStrength, p => Current.GraphicsProgress = p, pts => Current.GraphicsPoints = pts, Current.GraphicsBonusPoints, Current.GraphicsPenaltyPoints );
+		Snap( Current.DesignTime,   DesignTeamStrength,   p => Current.DesignProgress   = p, pts => Current.DesignPoints   = pts, Current.DesignBonusPoints   );
+		Snap( Current.SoundTime,    SoundTeamStrength,    p => Current.SoundProgress    = p, pts => Current.SoundPoints    = pts, Current.SoundBonusPoints    );
+		Snap( Current.GraphicsTime, GraphicsTeamStrength, p => Current.GraphicsProgress = p, pts => Current.GraphicsPoints = pts, Current.GraphicsBonusPoints );
 
 		Current.Phase = GameProjectPhase.Finished;
 		Notifications.Push( "Game Complete",
@@ -777,24 +807,23 @@ public sealed class GameProjectManager : Component
 		float synergy     = Math.Clamp( 1f + Current.Synergy * SynergyScalar, MinSynergy, MaxSynergy );
 		float quality     = (1f + pmBoost) * (1f + hackerBoost) * synergy;
 
-		// Smoke Break: `penalty` here is the smoke-break shortcut multiplier
-		// (not to be confused with the mood-tracker `moodPenalty` below).
-		void Snap( float effort, float teamStrength, Action<float> setProgress, Action<int> setPoints, int bonus, int moodPenalty )
+		// `penalty` here is the smoke-break shortcut multiplier.
+		void Snap( float effort, float teamStrength, Action<float> setProgress, Action<int> setPoints, int bonus )
 		{
 			if ( effort <= 0f )
 			{
 				setProgress( 1f );
-				setPoints( System.Math.Max( 0, bonus - moodPenalty ) );
+				setPoints( System.Math.Max( 0, bonus ) );
 				return;
 			}
 			float target = effort * teamStrength * quality * penalty;
 			setProgress( 1f );
-			setPoints( System.Math.Max( 0, (int)MathF.Round( target ) + bonus - moodPenalty ) );
+			setPoints( System.Math.Max( 0, (int)MathF.Round( target ) + bonus ) );
 		}
 
-		Snap( Current.DesignTime,   DesignTeamStrength,   p => Current.DesignProgress   = p, pts => Current.DesignPoints   = pts, Current.DesignBonusPoints,   Current.DesignPenaltyPoints   );
-		Snap( Current.SoundTime,    SoundTeamStrength,    p => Current.SoundProgress    = p, pts => Current.SoundPoints    = pts, Current.SoundBonusPoints,    Current.SoundPenaltyPoints    );
-		Snap( Current.GraphicsTime, GraphicsTeamStrength, p => Current.GraphicsProgress = p, pts => Current.GraphicsPoints = pts, Current.GraphicsBonusPoints, Current.GraphicsPenaltyPoints );
+		Snap( Current.DesignTime,   DesignTeamStrength,   p => Current.DesignProgress   = p, pts => Current.DesignPoints   = pts, Current.DesignBonusPoints   );
+		Snap( Current.SoundTime,    SoundTeamStrength,    p => Current.SoundProgress    = p, pts => Current.SoundPoints    = pts, Current.SoundBonusPoints    );
+		Snap( Current.GraphicsTime, GraphicsTeamStrength, p => Current.GraphicsProgress = p, pts => Current.GraphicsPoints = pts, Current.GraphicsBonusPoints );
 
 		Current.Phase = GameProjectPhase.Finished;
 		Notifications.Push( "Game Complete",
@@ -830,6 +859,10 @@ public sealed class GameProjectManager : Component
 		// progress while the player's still in the first-launch flow.
 		if ( TutorialManager.Instance is { IsBlockingTime: true } ) return;
 
+		// Modal / Escape-menu pause: production progress freezes while the
+		// player is in a configuration UI or the engine is paused.
+		if ( GameManager.Instance is { IsTimePaused: true } )       return;
+
 		float dt = Time.Delta * (GameManager.Instance?.TimeMultiplier ?? 1f);
 		if ( dt <= 0f ) return;
 
@@ -841,15 +874,6 @@ public sealed class GameProjectManager : Component
 		float quality       = (1f + pmBoost) * (1f + hackerBoost) * synergy;
 		float progressDelta = dt / ProjectDuration;
 
-		// Per-tick penalty accrual: the score we WOULD have earned this tick
-		// at full mood, but didn't because someone is in Bad mood. Same units
-		// as bonus (= effort × strength × quality × progressDelta). Persists
-		// across mood transitions so heal-late doesn't auto-refund the time
-		// spent at half strength.
-		Current.DesignPenaltyPoints   += (int)MathF.Round( Current.DesignTime   * DesignLostStrength   * quality * progressDelta );
-		Current.SoundPenaltyPoints    += (int)MathF.Round( Current.SoundTime    * SoundLostStrength    * quality * progressDelta );
-		Current.GraphicsPenaltyPoints += (int)MathF.Round( Current.GraphicsTime * GraphicsLostStrength * quality * progressDelta );
-
 		AdvancePillar(
 			effort:        Current.DesignTime,
 			teamStrength:  DesignTeamStrength,
@@ -858,8 +882,7 @@ public sealed class GameProjectManager : Component
 			progress:      p   => Current.DesignProgress = p,
 			points:        pts => Current.DesignPoints   = pts,
 			currentP:      Current.DesignProgress,
-			bonus:         Current.DesignBonusPoints,
-			penalty:       Current.DesignPenaltyPoints );
+			bonus:         Current.DesignBonusPoints );
 
 		AdvancePillar(
 			effort:        Current.SoundTime,
@@ -869,8 +892,7 @@ public sealed class GameProjectManager : Component
 			progress:      p   => Current.SoundProgress = p,
 			points:        pts => Current.SoundPoints   = pts,
 			currentP:      Current.SoundProgress,
-			bonus:         Current.SoundBonusPoints,
-			penalty:       Current.SoundPenaltyPoints );
+			bonus:         Current.SoundBonusPoints );
 
 		AdvancePillar(
 			effort:        Current.GraphicsTime,
@@ -880,8 +902,7 @@ public sealed class GameProjectManager : Component
 			progress:      p   => Current.GraphicsProgress = p,
 			points:        pts => Current.GraphicsPoints   = pts,
 			currentP:      Current.GraphicsProgress,
-			bonus:         Current.GraphicsBonusPoints,
-			penalty:       Current.GraphicsPenaltyPoints );
+			bonus:         Current.GraphicsBonusPoints );
 
 		// Phase transition once every pillar has hit 1.0. Step 5d hooks the
 		// payout flow off this notification.
@@ -935,8 +956,7 @@ public sealed class GameProjectManager : Component
 		Action<float>  progress,
 		Action<int>    points,
 		float          currentP,
-		int            bonus,
-		int            penalty )
+		int            bonus )
 	{
 		// 0 effort → pillar was pre-completed in BeginProduction. Skip.
 		if ( effort   <= 0f ) return;
@@ -945,15 +965,12 @@ public sealed class GameProjectManager : Component
 		float next = MathF.Min( 1f, currentP + progressDelta );
 		progress( next );
 
-		// Live points = progress × target + bonus − penalty.
-		//   • bonus   persists +N from accepted suggestions across ticks.
-		//   • penalty persists −N for time spent at Bad-mood half-strength,
-		//     so healing the mood doesn't auto-recover the lost ground.
-		// target itself uses *current* teamStrength (mood already applied),
-		// so swap-in mid-production still raises the ceiling smoothly —
-		// the penalty just locks in the time already spent at low strength.
+		// Live points = progress × target + bonus. `bonus` persists +N from
+		// accepted suggestions across ticks; `target` uses *current*
+		// teamStrength so mid-production hire/fire raises the ceiling
+		// smoothly.
 		float target = effort * teamStrength * quality;
-		int   final  = (int)MathF.Round( next * target ) + bonus - penalty;
+		int   final  = (int)MathF.Round( next * target ) + bonus;
 		points( System.Math.Max( 0, final ) );
 	}
 
@@ -996,13 +1013,12 @@ public sealed class GameProjectManager : Component
 				int   roleCount = Current.RoleCountFor( worker );
 				float eff       = GameProject.EfficiencyForRoleCount( roleCount );
 				float morale    = (worker as EmployeeNPC)?.Morale ?? 1f;
-				float mood      = (worker as EmployeeNPC)?.MoodEfficiencyFactor ?? 1f;
 				float weight    = primaryList.Contains( worker )
 					? 1f
 					: SecondaryRoleWeight;
 				float research  = ResearchFactor( worker );
 
-				total += BoostedStat( worker, pickStat ) * eff * morale * mood * weight * research;
+				total += BoostedStat( worker, pickStat ) * eff * morale * weight * research;
 			}
 		}
 
@@ -1013,7 +1029,7 @@ public sealed class GameProjectManager : Component
 		if ( founder is not null && seen.Add( founder ) && !IsOffSite( founder ) )
 		{
 			float fres = ResearchFactor( founder );
-			total += BoostedStat( founder, pickStat ) * 1f * 1f * SecondaryRoleWeight * fres;
+			total += BoostedStat( founder, pickStat ) * 1f * SecondaryRoleWeight * fres;
 		}
 
 		var hr = HRManager.Instance;
@@ -1025,65 +1041,8 @@ public sealed class GameProjectManager : Component
 				if ( IsOffSite( npc ) )   continue;
 
 				float morale = npc.Morale;
-				float mood   = npc.MoodEfficiencyFactor;
 				float nres   = ResearchFactor( npc );
-				total += BoostedStat( npc, pickStat ) * 1f * morale * mood * SecondaryRoleWeight * nres;
-			}
-		}
-
-		return total;
-	}
-
-	/// Mirror of <see cref="PillarContribution"/> that accumulates the
-	/// (1 − mood) × everything-else portion — i.e. the contribution that's
-	/// MISSING this tick due to Bad-mood workers. Founder and zero-mood
-	/// workers contribute 0 here. Used to grow
-	/// <see cref="GameProject.DesignPenaltyPoints"/> etc. each tick so
-	/// time spent at half strength stays as a permanent score tax even
-	/// after the mood heals.
-	float PillarLostContribution( GameDevRole primaryRole, Func<IDevWorker, int> pickStat )
-	{
-		if ( Current is null ) return 0f;
-
-		var   primaryList = Current.Assignments[primaryRole];
-		var   seen        = new HashSet<IDevWorker>();
-		float total       = 0f;
-
-		foreach ( var kv in Current.Assignments )
-		{
-			foreach ( var worker in kv.Value )
-			{
-				if ( worker is null )      continue;
-				if ( !seen.Add( worker ) ) continue;
-				if ( IsOffSite( worker ) ) continue;
-
-				int   roleCount = Current.RoleCountFor( worker );
-				float eff       = GameProject.EfficiencyForRoleCount( roleCount );
-				float morale    = (worker as EmployeeNPC)?.Morale ?? 1f;
-				float mood      = (worker as EmployeeNPC)?.MoodEfficiencyFactor ?? 1f;
-				float weight    = primaryList.Contains( worker ) ? 1f : SecondaryRoleWeight;
-				float research  = ResearchFactor( worker );
-
-				total += BoostedStat( worker, pickStat ) * eff * morale * (1f - mood) * weight * research;
-			}
-		}
-
-		// Founder is always mood = 1, so contributes 0 to the lost total.
-		// Skip the founder branch entirely.
-		_ = PlayerStats.Instance;
-
-		var hr = HRManager.Instance;
-		if ( hr is not null )
-		{
-			foreach ( var npc in hr.Staff )
-			{
-				if ( !seen.Add( npc ) ) continue;
-				if ( IsOffSite( npc ) ) continue;
-
-				float morale = npc.Morale;
-				float mood   = npc.MoodEfficiencyFactor;
-				float nres   = ResearchFactor( npc );
-				total += BoostedStat( npc, pickStat ) * 1f * morale * (1f - mood) * SecondaryRoleWeight * nres;
+				total += BoostedStat( npc, pickStat ) * morale * SecondaryRoleWeight * nres;
 			}
 		}
 

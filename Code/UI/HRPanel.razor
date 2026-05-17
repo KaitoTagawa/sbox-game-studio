@@ -1,0 +1,238 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+@* PROTOTYPE — fullscreen HR modal mirroring Shop/Inventory's chrome.
+   Opens via H (see HR.cs). Coexists with the GameMenuPanel HR section.
+   Delete this file + HRPanel.razor.scss + HR.cs to revert. *@
+
+<root class="@(IsOpen ? "open" : "closed")">
+	<div class="backdrop" onclick=@Close></div>
+	<div class="window">
+		<div class="header">
+			<div class="title">HUMAN RESOURCES</div>
+			<div class="close-btn" onclick=@Close>×</div>
+		</div>
+
+		<div class="cat-tabs">
+			<div class="cat-tab @(ActiveTab == HR.Tab.Hire ? "active" : "")"
+				 onclick=@(() => SetTab( HR.Tab.Hire ))>
+				<div class="cat-tab-name">HIRE</div>
+				<div class="cat-tab-meta">@Applicants.Count waiting</div>
+			</div>
+			<div class="cat-tab @(ActiveTab == HR.Tab.Fire ? "active" : "")"
+				 onclick=@(() => SetTab( HR.Tab.Fire ))>
+				<div class="cat-tab-name">FIRE</div>
+				<div class="cat-tab-meta">@Staff.Count on staff</div>
+			</div>
+			<div class="cat-tab @(ActiveTab == HR.Tab.Stats ? "active" : "")"
+				 onclick=@(() => SetTab( HR.Tab.Stats ))>
+				<div class="cat-tab-name">STATS</div>
+				<div class="cat-tab-meta">@Staff.Count employees</div>
+			</div>
+			<div class="cat-tab @(ActiveTab == HR.Tab.Posting ? "active" : "")"
+				 onclick=@(() => SetTab( HR.Tab.Posting ))>
+				<div class="cat-tab-name">JOB POSTING</div>
+				<div class="cat-tab-meta">@PostingName</div>
+			</div>
+		</div>
+
+		<div class="body">
+			@if ( ActiveTab == HR.Tab.Hire )
+			{
+				@if ( Applicants.Count == 0 )
+				{
+					<div class="empty">
+						@( PostingTier == JobPostingTier.None
+							? "No active job posting. Pick one in the Job Posting tab to start receiving applicants."
+							: "No applicants right now. New résumés arrive every few minutes." )
+					</div>
+				}
+				else
+				{
+					@foreach ( var a in Applicants )
+					{
+						var applicant = a;
+						var cost = HRManager.InterviewEnergyCost( applicant );
+						<div class="row @applicant.Kind.BadgeClass()">
+							<div class="row-info">
+								<div class="row-name">
+									@* Name in an explicit element so yoga keeps it left
+									   of the pill. Raw text nodes adjacent to flex
+									   `<div>` siblings reorder unpredictably under
+									   flex-direction: row. *@
+									<div class="name-text">@applicant.Name</div>
+									@if ( applicant.Kind.IsSpecial() )
+									{
+										<div class="kind-pill @applicant.Kind.BadgeClass()">@(applicant.IsReturningIntern ? "RETURNING" : applicant.Kind.PillLabel())</div>
+									}
+								</div>
+							</div>
+							<div class="btn interview" onclick=@(() => Interview( applicant ))>
+								Interview <span class="energy-tag">@cost⚡</span>
+							</div>
+							@if ( !applicant.IsTutorialHire )
+							{
+								<div class="btn reject" onclick=@(() => Reject( applicant ))>×</div>
+							}
+						</div>
+					}
+				}
+			}
+			else if ( ActiveTab == HR.Tab.Fire )
+			{
+				@if ( Staff.Count == 0 )
+				{
+					<div class="empty">You haven't hired anyone yet.</div>
+				}
+				else
+				{
+					@foreach ( var s in Staff )
+					{
+						var npc = s;
+						<div class="row">
+							<div class="row-info">
+								<div class="row-name">@npc.EmployeeName</div>
+							</div>
+							<div class="btn fire" onclick=@(() => Fire( npc ))>Fire</div>
+						</div>
+					}
+				}
+			}
+			else if ( ActiveTab == HR.Tab.Stats )
+			{
+				@if ( Founder is null && Staff.Count == 0 )
+				{
+					<div class="empty">No employees to inspect yet.</div>
+				}
+				else
+				{
+					@if ( Staff.Count > 0 )
+					{
+						<div class="payroll-summary">
+							<div class="payroll-line">
+								<div class="payroll-label">Salaries (@Staff.Count)</div>
+								<div class="payroll-value">$@TotalMonthlySalaries.ToString("N0")/mo</div>
+							</div>
+							<div class="payroll-line">
+								<div class="payroll-label">Job posting</div>
+								<div class="payroll-value">$@PostingMonthlyCost.ToString("N0")/mo</div>
+							</div>
+							<div class="payroll-line total">
+								<div class="payroll-label">Monthly burn</div>
+								<div class="payroll-value">$@TotalMonthlyExpenses.ToString("N0")/mo</div>
+							</div>
+						</div>
+					}
+
+					@if ( Founder is not null )
+					{
+						var f = Founder;
+						<div class="row">
+							<div class="row-info">
+								<div class="row-name">
+									<div class="name-text">@f.Name</div>
+									<div class="founder-pill">FOUNDER</div>
+								</div>
+							</div>
+							<div class="btn interview" onclick=@(() => ViewWorker( f ))>View</div>
+						</div>
+					}
+
+					@foreach ( var s in Staff )
+					{
+						var npc = s;
+						<div class="row">
+							<div class="row-info">
+								<div class="row-name">@npc.EmployeeName</div>
+							</div>
+							<div class="btn interview" onclick=@(() => ViewWorker( npc ))>View</div>
+						</div>
+					}
+				}
+			}
+			else if ( ActiveTab == HR.Tab.Posting )
+			{
+				@foreach ( var info in JobPosting.All )
+				{
+					if ( info.Tier == JobPostingTier.None ) continue;
+					var p          = info;
+					var isCurrent  = PostingTier == p.Tier;
+					var isUnlocked = JobPosting.IsUnlocked( p.Tier );
+					var lockAch    = !isUnlocked && p.RequiredAchievement is { } id
+						? Achievements.Get( id ) : null;
+					<div class="posting-row @(isCurrent ? "current" : "") @(isUnlocked ? "" : "locked")"
+					     onclick=@(() => SetPosting( p.Tier ))>
+						<div class="posting-info">
+							<div class="posting-name">@p.Name</div>
+							<div class="posting-desc">@p.Description</div>
+							@if ( lockAch != null )
+							{
+								<div class="posting-lock">🔒 @lockAch.Name — @lockAch.Description</div>
+							}
+						</div>
+						<div class="posting-cost">
+							@( p.MonthlyCost > 0 ? $"${p.MonthlyCost:N0}/mo" : "Free" )
+						</div>
+						<div class="posting-status">
+							@( isCurrent ? "Active" : !isUnlocked ? "Locked" : "Switch" )
+						</div>
+					</div>
+				}
+			}
+		</div>
+	</div>
+</root>
+
+@code {
+	// ── State ────────────────────────────────────────────────────────────────
+
+	private bool IsOpen => HR.Instance?.IsOpen ?? false;
+	private HR.Tab ActiveTab => HR.Instance?.ActiveTab ?? HR.Tab.Hire;
+
+	private void SetTab( HR.Tab t )
+	{
+		if ( HR.Instance is { } h ) h.ActiveTab = t;
+	}
+
+	private void Close() => HR.Instance?.SetOpen( false );
+
+	// ── Data accessors (mirror GameMenuPanel) ────────────────────────────────
+
+	private IReadOnlyList<Employee>    Applicants => HRManager.Instance?.Applicants ?? System.Array.Empty<Employee>();
+	private IReadOnlyList<EmployeeNPC> Staff      => HRManager.Instance?.Staff      ?? System.Array.Empty<EmployeeNPC>();
+	private PlayerStats                Founder    => PlayerStats.Instance;
+
+	private JobPostingTier PostingTier => HRManager.Instance?.PostingTier ?? JobPostingTier.None;
+	private string         PostingName => HRManager.Instance?.PostingInfo.Name ?? "—";
+
+	private long TotalMonthlySalaries => HRManager.Instance?.TotalMonthlySalaries        ?? 0;
+	private long PostingMonthlyCost   => HRManager.Instance?.PostingInfo.MonthlyCost     ?? 0;
+	private long TotalMonthlyExpenses => HRManager.Instance?.TotalMonthlyExpenses        ?? 0;
+
+	// ── Action handlers ──────────────────────────────────────────────────────
+
+	private void Interview ( Employee a )            => HRManager.Instance?.TryStartInterview( a );
+	private void Reject    ( Employee a )            => HRManager.Instance?.Reject( a );
+	private void Fire      ( EmployeeNPC npc )       => HRManager.Instance?.Fire( npc );
+	private void SetPosting( JobPostingTier tier )   => HRManager.Instance?.TrySetPostingTier( tier );
+	private void ViewWorker( IDevWorker w )          => HRManager.Instance?.ViewWorker( w );
+
+	// ── Re-render trigger ────────────────────────────────────────────────────
+
+	protected override int BuildHash()
+	{
+		var hr = HRManager.Instance;
+		var hc = new System.HashCode();
+		hc.Add( IsOpen );
+		hc.Add( (int)ActiveTab );
+		hc.Add( Applicants.Count );
+		hc.Add( Staff.Count );
+		hc.Add( (int)PostingTier );
+		hc.Add( TotalMonthlySalaries );
+		hc.Add( TotalMonthlyExpenses );
+		// Founder name is the cheapest "did the founder change" check.
+		hc.Add( Founder?.Name );
+		return hc.ToHashCode();
+	}
+}

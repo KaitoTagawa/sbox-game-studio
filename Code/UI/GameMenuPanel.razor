@@ -2,6 +2,10 @@
 @using Sandbox.UI;
 @inherits PanelComponent
 
+@* Menu is now purely a launcher of fullscreen modals (ADR-0003 Phase 1).
+   Every tile routes to its own modal via GameMenu.Activate; this panel
+   just renders the tile grid + handles open/close + tutorial gating. *@
+
 <root class="@(IsOpen ? "open" : "closed")">
 	<div class="backdrop" onclick=@Close></div>
 	<div class="window">
@@ -16,7 +20,7 @@
 				var index = i;
 				var tile  = Tiles[i];
 				var disabled = !TileEnabled( tile.Name );
-				<div class="tile tile-@index @(HoveredIndex == index ? "hover" : "") @(ActiveSection == index ? "selected" : "") @(disabled ? "disabled" : "")"
+				<div class="tile tile-@index @(HoveredIndex == index ? "hover" : "") @(disabled ? "disabled" : "")"
 					 onmouseover=@(() => Hover( index ))
 					 onmouseout=@Unhover
 					 onclick=@(() => Activate( index ))>
@@ -28,448 +32,26 @@
 				</div>
 			}
 		</div>
-
-		<div class="content">
-			@if ( ActiveSection < 0 )
-			{
-				@* Empty content area when no tile is selected. The hover-
-				   description was removed because the tile labels are
-				   self-explanatory now. *@
-			}
-			else if ( ActiveSection == HRIndex )
-			{
-				<div class="hr">
-					<div class="hr-tabs">
-						<div class="hr-tab @(ActiveHR == HRSubview.Hire ? "active" : "") @(HRSubviewEnabled( HRSubview.Hire ) ? "" : "disabled")"
-							 onclick=@(() => SetHR( HRSubview.Hire ))>
-							<div class="hr-tab-label">Hire</div>
-							<div class="hr-tab-meta">@Applicants.Count waiting</div>
-						</div>
-						<div class="hr-tab @(ActiveHR == HRSubview.Fire ? "active" : "") @(HRSubviewEnabled( HRSubview.Fire ) ? "" : "disabled")"
-							 onclick=@(() => SetHR( HRSubview.Fire ))>
-							<div class="hr-tab-label">Fire</div>
-							<div class="hr-tab-meta">@Staff.Count on staff</div>
-						</div>
-						<div class="hr-tab @(ActiveHR == HRSubview.Stats ? "active" : "") @(HRSubviewEnabled( HRSubview.Stats ) ? "" : "disabled")"
-							 onclick=@(() => SetHR( HRSubview.Stats ))>
-							<div class="hr-tab-label">Stats</div>
-							<div class="hr-tab-meta">@Staff.Count employees</div>
-						</div>
-						<div class="hr-tab @(ActiveHR == HRSubview.Posting ? "active" : "") @(HRSubviewEnabled( HRSubview.Posting ) ? "" : "disabled")"
-							 onclick=@(() => SetHR( HRSubview.Posting ))>
-							<div class="hr-tab-label">Job Posting</div>
-							<div class="hr-tab-meta">@PostingName</div>
-						</div>
-					</div>
-
-					<div class="hr-body">
-						@if ( ActiveHR == HRSubview.Hire )
-						{
-							@* INBOX — interview reveal moved to InterviewPanel modal. *@
-							@if ( Applicants.Count == 0 )
-							{
-								<div class="hr-empty">
-									@( PostingTier == JobPostingTier.None
-										? "No active job posting. Pick one in the Job Posting tab to start receiving applicants."
-										: "No applicants right now. New résumés arrive every few minutes." )
-								</div>
-							}
-							else
-							{
-								@foreach ( var a in Applicants )
-								{
-									var applicant = a;
-									var cost = HRManager.InterviewEnergyCost( applicant );
-									<div class="row @applicant.Kind.BadgeClass()">
-										<div class="row-info">
-											<div class="row-name">
-												@applicant.Name
-												@if ( applicant.Kind.IsSpecial() )
-												{
-													<div class="kind-pill @applicant.Kind.BadgeClass()">@(applicant.IsReturningIntern ? "RETURNING" : applicant.Kind.PillLabel())</div>
-												}
-											</div>
-										</div>
-										<div class="btn interview" onclick=@(() => Interview( applicant ))>
-											Interview <span class="energy-tag">@cost⚡</span>
-										</div>
-										@if ( !applicant.IsTutorialHire )
-										{
-											<div class="btn reject" onclick=@(() => Reject( applicant ))>×</div>
-										}
-									</div>
-								}
-							}
-						}
-						else if ( ActiveHR == HRSubview.Fire )
-						{
-							@if ( Staff.Count == 0 )
-							{
-								<div class="hr-empty">You haven't hired anyone yet.</div>
-							}
-							else
-							{
-								@foreach ( var s in Staff )
-								{
-									var npc = s;
-									@* Meta line removed — yoga ate the `·` separators
-									   between Role / DeskLabel / Salary, rendering them
-									   smooshed ("ProgrammerDesk 1750/mo"). The fire flow
-									   only needs the name and a button anyway; full stats
-									   live in the Stats sub-tab and StaffStatsPanel. *@
-									<div class="row">
-										<div class="row-info">
-											<div class="row-name">@npc.EmployeeName</div>
-										</div>
-										<div class="btn fire" onclick=@(() => Fire( npc ))>Fire</div>
-									</div>
-								}
-							}
-						}
-						else if ( ActiveHR == HRSubview.Stats )
-						{
-							@* Compact row list mirroring Hire / Fire — clicking View
-							   pops the StaffStatsPanel modal with full stats + salary
-							   + abilities. The detail UI moved to its own modal so
-							   the in-menu page stays scannable. *@
-							@if ( Founder is null && Staff.Count == 0 )
-							{
-								<div class="hr-empty">No employees to inspect yet.</div>
-							}
-							else
-							{
-								@if ( Staff.Count > 0 )
-								{
-									<div class="payroll-summary">
-										<div class="payroll-line">
-											<div class="payroll-label">Salaries (@Staff.Count)</div>
-											<div class="payroll-value">$@TotalMonthlySalaries.ToString("N0")/mo</div>
-										</div>
-										<div class="payroll-line">
-											<div class="payroll-label">Job posting</div>
-											<div class="payroll-value">$@PostingMonthlyCost.ToString("N0")/mo</div>
-										</div>
-										<div class="payroll-line total">
-											<div class="payroll-label">Monthly burn</div>
-											<div class="payroll-value">$@TotalMonthlyExpenses.ToString("N0")/mo</div>
-										</div>
-									</div>
-								}
-
-								@if ( Founder is not null )
-								{
-									var f = Founder;
-									<div class="row">
-										<div class="row-info">
-											<div class="row-name">
-												@f.Name
-												<div class="founder-pill">FOUNDER</div>
-											</div>
-										</div>
-										<div class="btn interview" onclick=@(() => ViewWorker( f ))>View</div>
-									</div>
-								}
-
-								@foreach ( var s in Staff )
-								{
-									var npc = s;
-									<div class="row">
-										<div class="row-info">
-											<div class="row-name">@npc.EmployeeName</div>
-										</div>
-										<div class="btn interview" onclick=@(() => ViewWorker( npc ))>View</div>
-									</div>
-								}
-							}
-						}
-						else if ( ActiveHR == HRSubview.Posting )
-						{
-							@* "Off" (JobPostingTier.None) is filtered out — Bulletin
-							   Board is free and the studio default, so there's no
-							   reason to surface a "no posting" option. The enum value
-							   still exists (PayPostingFee falls back to it if a paid
-							   tier becomes unaffordable) but the picker only shows
-							   real choices. *@
-							@foreach ( var info in JobPosting.All )
-							{
-								if ( info.Tier == JobPostingTier.None ) continue;
-								var p          = info;
-								var isCurrent  = PostingTier == p.Tier;
-								var isUnlocked = JobPosting.IsUnlocked( p.Tier );
-								var lockAch    = !isUnlocked && p.RequiredAchievement is { } id
-									? Achievements.Get( id ) : null;
-								<div class="posting-row @(isCurrent ? "current" : "") @(isUnlocked ? "" : "locked")"
-								     onclick=@(() => SetPosting( p.Tier ))>
-									<div class="posting-info">
-										<div class="posting-name">@p.Name</div>
-										<div class="posting-desc">@p.Description</div>
-										@if ( lockAch != null )
-										{
-											<div class="posting-lock">🔒 @lockAch.Name — @lockAch.Description</div>
-										}
-									</div>
-									<div class="posting-cost">
-										@( p.MonthlyCost > 0 ? $"${p.MonthlyCost:N0}/mo" : "Free" )
-									</div>
-									<div class="posting-status">
-										@( isCurrent ? "Active" : !isUnlocked ? "Locked" : "Switch" )
-									</div>
-								</div>
-							}
-						}
-						else
-						{
-							<div class="hr-empty">Pick an option above.</div>
-						}
-					</div>
-				</div>
-			}
-			else if ( ActiveSection == SaveIndex )
-			{
-				<div class="save-section">
-					<div class="save-slots">
-						@for ( int i = 0; i < SlotIds.Length; i++ )
-						{
-							var idx        = i;
-							var slotId     = SlotIds[idx];
-							var peek       = SlotPeek( slotId );
-							var hasSave    = peek is not null;
-							var isAutosave = slotId == GameSaveManager.AutosaveSlotId;
-							<div class="save-slot @(hasSave ? "" : "empty") @(isAutosave ? "autosave" : "")">
-								<div class="save-slot-head">
-									<div class="save-slot-name">
-										SLOT @(idx + 1)@(isAutosave ? " (AUTO-SAVE)" : "")
-									</div>
-									@if ( hasSave )
-									{
-										<div class="save-slot-date">@SlotDateLabel( peek )</div>
-									}
-								</div>
-								<div class="save-slot-body">
-									@if ( hasSave )
-									{
-										<div class="save-slot-row">
-											<div class="save-slot-key">Day</div>
-											<div class="save-slot-val">@peek.Calendar.Day / @peek.Calendar.Month / @peek.Calendar.Year</div>
-										</div>
-										<div class="save-slot-row">
-											<div class="save-slot-key">Money</div>
-											<div class="save-slot-val">$@peek.Economy.Money.ToString("N0")</div>
-										</div>
-									}
-									else
-									{
-										<div class="save-slot-empty">Empty</div>
-									}
-								</div>
-								<div class="save-slot-foot">
-									@if ( !isAutosave )
-									{
-										<div class="btn save-btn" onclick=@(() => SaveSlot( slotId ))>
-											<div class="save-btn-label">SAVE</div>
-										</div>
-									}
-									<div class="btn load-btn @(hasSave ? "" : "disabled")"
-									     onclick=@(() => { if ( hasSave ) LoadSlot( slotId ); })>
-										<div class="save-btn-label">LOAD</div>
-									</div>
-								</div>
-							</div>
-						}
-					</div>
-
-					<div class="save-hint">
-						Slot 1 auto-saves at the end of every in-game day and when a
-						project ships. Slot 2 is yours to write manually.
-					</div>
-
-					@* Red button under the save slots opens a top-level
-					   takeover modal — see the overlay block below. The
-					   button itself stays inline. *@
-					<div class="new-game-btn" onclick=@StartConfirmNewGame>
-						<div class="new-game-btn-label">START NEW GAME</div>
-					</div>
-				</div>
-			}
-			else
-			{
-				<div class="placeholder">
-					<div class="ph-title">@SelectedName</div>
-					<div class="ph-text">Coming soon — this section isn't built yet.</div>
-				</div>
-			}
-		</div>
 	</div>
-
-	@* TAKEOVER MODAL — sits above the menu window with a higher z-index
-	   so the start-new-game confirmation can't be missed. Yes / No only;
-	   backdrop click counts as cancel (matches "no" intent). *@
-	@if ( _confirmingNewGame )
-	{
-		<div class="restart-takeover-backdrop" onclick=@CancelNewGame></div>
-		<div class="restart-takeover">
-			<div class="restart-takeover-title">Are you sure?</div>
-			<div class="restart-takeover-text">Start a new game?</div>
-			<div class="restart-takeover-row">
-				<div class="btn restart-takeover-no" onclick=@CancelNewGame>
-					<div class="restart-takeover-label">NO</div>
-				</div>
-				<div class="btn restart-takeover-yes" onclick=@ConfirmNewGame>
-					<div class="restart-takeover-label">YES</div>
-				</div>
-			</div>
-		</div>
-	}
 </root>
 
 @code {
-	// ── State pulled from GameMenu / HRManager ───────────────────────────────
+	// ── State pulled from GameMenu ───────────────────────────────────────────
 
 	private bool IsOpen                       => GameMenu.Instance?.IsOpen          ?? false;
 	private IReadOnlyList<MenuTile> Tiles     => GameMenu.Instance?.Tiles           ?? System.Array.Empty<MenuTile>();
 	private int  HoveredIndex                 => GameMenu.Instance?.HoveredIndex    ?? -1;
-	private int  ActiveSection                => GameMenu.Instance?.ActiveSection   ?? -1;
-	private HRSubview ActiveHR                => GameMenu.Instance?.ActiveHRSubview ?? HRSubview.None;
 
-	private int HRIndex       => GameMenu.Instance?.IndexOf( "Human Resource" ) ?? -1;
-	private int SaveIndex     => GameMenu.Instance?.IndexOf( "Save" )           ?? -1;
-
-	// ── Save / Load section ──────────────────────────────────────────────────
-	// Two slot cards. Each card shows the saved game's date + in-game day +
-	// money so the player can compare before overwriting or loading. Slot 1
-	// is the autosave slot (read-only via UI: LOAD allowed, SAVE hidden);
-	// slot 2 is the player's free manual slot. Autosave triggers
-	// (day-tick / project-shipped / scene-exit) overwrite slot 1 directly.
-
-	private string[] SlotIds => GameSaveManager.ManualSlotIds;
-
-	// Per-slot peek cache. Filled on first access, invalidated on save.
-	private readonly Dictionary<string, GameSave> _slotPeeks = new();
-
-	private GameSave SlotPeek( string slotId )
-	{
-		var sm = GameSaveManager.Instance;
-		if ( sm is null ) return null;
-
-		// Autosave slot bypasses the cache: autosaves fire outside the UI
-		// (day tick, project ship, scene exit), so a cached peek would go
-		// stale the moment the player keeps playing with the menu closed.
-		// Re-reading a small JSON each render is cheap and keeps the slot 1
-		// card honest.
-		if ( slotId == GameSaveManager.AutosaveSlotId )
-			return sm.PeekRun( slotId );
-
-		if ( _slotPeeks.TryGetValue( slotId, out var peek ) ) return peek;
-		peek = sm.PeekRun( slotId );
-		_slotPeeks[slotId] = peek;
-		return peek;
-	}
-
-	private static string SlotDateLabel( GameSave peek )
-		=> peek?.SavedAt.LocalDateTime.ToString( "MMM d, HH:mm" ) ?? "—";
-
-	private void SaveSlot( string slotId )
-	{
-		var sm = GameSaveManager.Instance;
-		if ( sm is null ) return;
-		_slotPeeks.Remove( slotId );   // next render re-reads the file
-		if ( sm.TrySaveRun( slotId, out var err ) )
-			Notifications.Push( "Saved", $"Wrote to {SlotLabel( slotId )}.", "success" );
-		else
-			Notifications.Push( "Save failed", err ?? "unknown error", "warning" );
-	}
-
-	private void LoadSlot( string slotId )
-	{
-		var sm = GameSaveManager.Instance;
-		if ( sm is null ) return;
-		if ( sm.TryLoadRun( slotId, out var err ) )
-			Notifications.Push( "Loaded", $"Restored {SlotLabel( slotId )}.", "success" );
-		else
-			Notifications.Push( "Load failed", err ?? "unknown error", "warning" );
-	}
-
-	// "Start New Game" two-step confirmation. Toggle drives the markup
-	// branch above; reset on close so reopening the menu lands on the
-	// non-confirming state.
-	private bool _confirmingNewGame;
-
-	private void StartConfirmNewGame() { _confirmingNewGame = true; }
-	private void CancelNewGame()       { _confirmingNewGame = false; }
-
-	private void ConfirmNewGame()
-	{
-		_confirmingNewGame = false;
-		_slotPeeks.Clear();   // peek cache invalid after a wipe
-		GameSaveManager.Instance?.RestartRun();
-	}
-
-	private static string SlotLabel( string slotId )
-	{
-		// "slot-1" → "Slot 1"
-		if ( slotId is null ) return "?";
-		var ids = GameSaveManager.ManualSlotIds;
-		for ( int i = 0; i < ids.Length; i++ )
-			if ( ids[i] == slotId ) return $"Slot {i + 1}";
-		return slotId;
-	}
-
-	private IReadOnlyList<Employee>    Applicants  => HRManager.Instance?.Applicants ?? System.Array.Empty<Employee>();
-	private IReadOnlyList<EmployeeNPC> Staff       => HRManager.Instance?.Staff      ?? System.Array.Empty<EmployeeNPC>();
-	private Employee                   Interviewee => HRManager.Instance?.InterviewSubject;
-
-	// Founder shows at the top of the HR Stats subview — same shape as a hire
-	// but with level/XP instead of morale/salary.
-	private PlayerStats Founder => PlayerStats.Instance;
-	private int  FreeDeskCount => HRManager.Instance?.FreeDeskCount ?? 0;
-	private int  MaxDesks      => HRManager.Instance?.MaxDesks      ?? 0;
-
-	// Edit Room sub-page is gone — the Inventory modal owns desk + furniture
-	// + consumable management now (see InventoryPanel.razor). The HR Stats
-	// view still uses UnlockedDesks below; everything else moved to the modal.
-	private int  UnlockedDesks => HRManager.Instance?.UnlockedDesks ?? 0;
-
-	private JobPostingTier PostingTier => HRManager.Instance?.PostingTier ?? JobPostingTier.None;
-	private string PostingName         => HRManager.Instance?.PostingInfo.Name ?? "—";
-
-	private long TotalMonthlySalaries => HRManager.Instance?.TotalMonthlySalaries ?? 0;
-	private long PostingMonthlyCost   => HRManager.Instance?.PostingInfo.MonthlyCost ?? 0;
-	private long TotalMonthlyExpenses => HRManager.Instance?.TotalMonthlyExpenses ?? 0;
-
-	// ── Header / hover-description helpers ───────────────────────────────────
+	// ── Header ───────────────────────────────────────────────────────────────
 
 	private string HeaderText
 	{
 		get
 		{
-			if ( ActiveSection >= 0 && ActiveSection < Tiles.Count )
-				return Tiles[ActiveSection].Name.ToUpper();
 			if ( HoveredIndex < 0 || HoveredIndex >= Tiles.Count )
 				return "MENU";
 			return Tiles[HoveredIndex].Name.ToUpper();
 		}
-	}
-
-	private string SelectedName =>
-		( ActiveSection >= 0 && ActiveSection < Tiles.Count ) ? Tiles[ActiveSection].Name : "";
-
-	// Maps a 1–1000 stat to a 0–100% bar width.
-	private int BarPct( int value ) => System.Math.Clamp( value / 10, 0, 100 );
-
-	private string TierLabel( int tier ) => tier switch
-	{
-		0 => "Junior",
-		1 => "Mid",
-		2 => "Senior",
-		_ => "?",
-	};
-
-	private string DeskLabel( EmployeeNPC npc )
-	{
-		if ( npc is null ) return "—";
-		var inv = InventoryManager.Instance;
-		if ( inv is null ) return "—";
-		return inv.LabelForDeskSlot( npc.DeskSlotId );
 	}
 
 	// ── Tile interactions ────────────────────────────────────────────────────
@@ -479,73 +61,19 @@
 	private void Activate( int index )    => GameMenu.Instance?.Activate( index );
 	private void Close()                  => GameMenu.Instance?.SetOpen( false );
 
-	/// Tutorial-aware sub-tab click. Drops the call on the floor when the
-	/// tab is disabled (tutorial-locked or otherwise) so the visual
-	/// .disabled class and the runtime gate match.
-	private void SetHR( HRSubview s )
-	{
-		if ( !HRSubviewEnabled( s ) ) return;
-		GameMenu.Instance?.SetHRSubview( s );
-	}
-
 	/// Tile-name → enabled. Routes through TutorialManager during the
 	/// first-launch flow; outside the tutorial every tile is enabled.
 	private bool TileEnabled( string tileName ) =>
 		TutorialManager.Instance?.IsTileEnabled( tileName ) ?? true;
 
-	/// HR sub-tab → enabled. Same gating as TileEnabled.
-	private bool HRSubviewEnabled( HRSubview s ) =>
-		TutorialManager.Instance?.IsHRSubviewEnabled( s ) ?? true;
-
-	// ── HR actions ───────────────────────────────────────────────────────────
-
-	private void Interview( Employee a )            => HRManager.Instance?.TryStartInterview( a );
-	private void Reject   ( Employee a )            => HRManager.Instance?.Reject( a );
-	private void HireCurrent()                      => HRManager.Instance?.HireInterviewSubject();
-	private void PassCurrent()                      => HRManager.Instance?.PassOnInterviewSubject();
-	private void Fire     ( EmployeeNPC npc )       => HRManager.Instance?.Fire( npc );
-	private void SetPosting( JobPostingTier tier )  => HRManager.Instance?.TrySetPostingTier( tier );
-	private void ViewWorker( IDevWorker w )         => HRManager.Instance?.ViewWorker( w );
-
-	// Training has its own modal now (TrainingPanel) — the inline section
-	// that used to live here was removed when the v2 tier+session+research
-	// rework landed. Helpers / handlers for it are gone with it.
-
-	private long Money => GameManager.Instance?.Money ?? 0;
-
 	// ── Re-render trigger ────────────────────────────────────────────────────
-
-	/// Sum of every staff member's overall stat. Cheap proxy that flips when
-	/// any training session lands, so the Training panel's per-row OVR column
-	/// and the per-stat readouts redraw immediately without us having to wire
-	/// up a per-cell observer.
-	private int StaffOverallSum
-	{
-		get
-		{
-			int sum = Founder?.Stats?.Overall ?? 0;
-			foreach ( var npc in Staff )
-				sum += npc.Stats?.Overall ?? 0;
-			return sum;
-		}
-	}
 
 	protected override int BuildHash()
 	{
-		// HashCode.Combine maxes out at 8 args, so fold the rest in via a
-		// second combine. The exact value is irrelevant — we just need any
-		// change here to trigger a re-render.
-		var primary = System.HashCode.Combine(
-			IsOpen, HoveredIndex, ActiveSection, (int)ActiveHR,
-			Applicants.Count, Staff.Count,
-			Interviewee?.Name, (int)PostingTier );
 		return System.HashCode.Combine(
-			primary, Achievements.Unlocked.Count, UnlockedDesks,
-			Founder?.Level ?? 0,
-			Founder?.Xp    ?? 0L,
-			StaffOverallSum,
-			Money,
-			// Tutorial phase drives .disabled classes on every tile + tab —
+			IsOpen, HoveredIndex,
+			Achievements.Unlocked.Count,
+			// Tutorial phase drives .disabled classes on every tile —
 			// without it, the menu wouldn't redraw when Begin is clicked or
 			// the first hire lands.
 			(int)(TutorialManager.Instance?.Phase ?? TutorialPhase.Complete) );
