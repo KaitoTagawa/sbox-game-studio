@@ -358,7 +358,7 @@
           ],
           "Children": [
             {
-              "__guid": "80ca5582-3201-4d37-b38f-de8052c174ed",
+              "__guid": "79721ef9-6598-4d1b-ad2a-19165e3845b1",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - hair.loose.grey",
@@ -375,7 +375,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "8245ef38-f17c-4039-8d84-975c573ba1c6",
+                  "__guid": "045ac260-46a4-4045-86ab-35103bb14777",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -427,7 +427,7 @@
               "Children": []
             },
             {
-              "__guid": "152b38fd-ac20-4270-95fa-8d28276ad02b",
+              "__guid": "6f6eed5b-fd6f-48d5-81ee-bcd55893492f",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - blue_shirt",
@@ -444,7 +444,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "b37a9829-21db-4f7a-94ec-11d9638e4d64",
+                  "__guid": "eed8a944-46d1-4722-8608-246e091b4223",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -496,7 +496,7 @@
               "Children": []
             },
             {
-              "__guid": "0bcc7958-31bc-46ab-ba12-8ceae49249c3",
+              "__guid": "5044e2ea-9202-4dcd-a28c-1a05d93dbd6d",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - blue_sneakers",
@@ -513,7 +513,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "c1725265-a8a9-46c7-91e4-4269266965a3",
+                  "__guid": "75dd900f-d4ec-47ff-ade0-f53e6dcbf5a6",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -565,7 +565,7 @@
               "Children": []
             },
             {
-              "__guid": "2c200317-4f48-4482-b6a1-8d8ed9322ae5",
+              "__guid": "0fea5228-0c66-40ea-8da4-f43ebd700226",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - brown_leather_jacket",
@@ -582,7 +582,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "9f6aade9-141f-46da-bb3b-56d213372097",
+                  "__guid": "e5f33d89-10bc-44e3-9f1a-3314ab35f2a6",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -634,7 +634,7 @@
               "Children": []
             },
             {
-              "__guid": "32532140-ea09-40f8-8225-9c5ce2ca766c",
+              "__guid": "0d1950cd-92bc-48c0-9108-7fdce7be6eeb",
               "__version": 2,
               "Flags": 0,
               "Name": "Clothing - nerdy_glasses",
@@ -651,7 +651,7 @@
               "Components": [
                 {
                   "__type": "Sandbox.SkinnedModelRenderer",
-                  "__guid": "5e5948fc-8460-4cc5-836e-dfd359041dd4",
+                  "__guid": "afaad184-f23b-4ae9-865d-e7eb2361b9bb",
                   "__enabled": true,
                   "Flags": 0,
                   "AnimationGraph": null,
@@ -20552,9 +20552,9 @@
           "__version": 2,
           "Flags": 0,
           "Name": "SkirtingBoard (2)",
-          "Position": "17.028656,-315.323578,-141.025055",
+          "Position": "17.028656,-7.70956421,-141.025055",
           "Rotation": "0,0,0.707106769,0.707106769",
-          "Scale": "30,0.280001312,1",
+          "Scale": "12.2098694,0.280001312,1",
           "Tags": "",
           "Enabled": true,
           "NetworkMode": 2,
@@ -21011,18 +21011,18 @@
       "CustomBounds": false
     },
     "GameObjectSystems": {
-      "Sandbox.SelectionSetsSystem": {
-        "Data": {
-          "SelectionSets": []
-        }
+      "Sandbox.MovieMaker.MovieRecorderSystem": {
+        "DisableClientRecording": false
       },
       "Sandbox.Clutter.ClutterGridSystem": {
         "Storage": {
           "$blob": "c55e54b0-e5fb-46ec-a840-541260b14838"
         }
       },
-      "Sandbox.MovieMaker.MovieRecorderSystem": {
-        "DisableClientRecording": false
+      "Sandbox.SelectionSetsSystem": {
+        "Data": {
+          "SelectionSets": []
+        }
       }
     }
   },
